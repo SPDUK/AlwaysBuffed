@@ -1,0 +1,34 @@
+<Bindings>
+    <Binding name="ALWAYSBUFFED_TOGGLE_WHEEL" header="ALWAYSBUFFED" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_TOGGLE_BAR" category="ADDONS">
+        AlwaysBuffed_ToggleBar()
+    </Binding>
+    <Binding name="ALWAYSBUFFED_USE_FOOD" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_ELIXIR" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_ELIXIRATTACKPOWER" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_ELIXIRDEFENSE" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_ELIXIRREGEN" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_FLASK" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_ELIXIRBLASTEDLANDS" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_ELIXIRARTHAS" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_ELIXIRRESISTANCE" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_CRYSTALSPIRE" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_FOODCHILI" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_ELIXIRFESTIVAL" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_DRAUGHTWATERBREATHING" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_DRAUGHTWATERWALKING" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_DRAUGHTDETECTION" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_SCROLLSTRENGTH" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_SCROLLAGILITY" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_SCROLLSTAMINA" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_SCROLLINTELLECT" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_SCROLLSPIRIT" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_SCROLLPROTECTION" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_SCROLLFAMILIAR" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_WEAPON" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_WEAPONOFFHAND" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_IMBUE" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_IMBUEOFFHAND" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_CAMPFIRE" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_SLEEPINGBAG" category="ADDONS" />
+</Bindings>

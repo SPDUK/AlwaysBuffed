@@ -1,0 +1,23 @@
+## Interface: 16001
+## AllowLoadGameType: camelot
+## Title: AlwaysBuffed
+## Author: SPDUK
+## Notes: Leveling food, consumable shopping lists, and one-click buff reminders for WoW Forever.
+## Version: 1.0.0
+## Category: Combat
+## IconTexture: Interface\AddOns\AlwaysBuffed\Media\AlwaysBuffed
+## SavedVariablesPerCharacter: AlwaysBuffedDB
+## OptionalDeps: Auctionator
+
+Catalog.lua
+Categories.lua
+Profiles.lua
+Planner.lua
+Game.lua
+Theme.lua
+Status.lua
+Actions.lua
+BuffBindings.lua
+Wheel.lua
+Options.lua
+Core.lua
