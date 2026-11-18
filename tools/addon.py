@@ -27,21 +27,25 @@ def release_files(name):
         entry = line.strip()
         if entry and not entry.startswith("#") and not (source / entry.replace("\\", "/")).is_file():
             raise FileNotFoundError(f"Missing TOC entry {entry}")
-    files = sorted(path for path in source.rglob("*") if path.is_file() and
-                   not any(part.startswith(".") for part in path.relative_to(source).parts))
+    files = {
+        path.relative_to(source).as_posix(): path for path in source.rglob("*")
+        if path.is_file() and not any(part.startswith(".") for part in path.relative_to(source).parts)
+    }
+    if name == "AlwaysBuffed":
+        files["LICENSE"] = ROOT / "LICENSE"
     suffix = "-forever" if "## AllowLoadGameType: camelot" in lines else ""
-    return version, suffix, source, files
+    return version, suffix, files
 
 
 def package(name):
-    version, suffix, source, files = release_files(name)
+    version, suffix, files = release_files(name)
     out = ROOT / "dist" / f"{name}-{version}{suffix}.zip"
     out.parent.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(dir=out.parent) as scratch:
         artifact = Path(scratch) / out.name
         with ZipFile(artifact, "w") as archive:
-            for path in files:
-                entry = ZipInfo(f"{name}/{path.relative_to(source).as_posix()}")
+            for relative_path, path in sorted(files.items()):
+                entry = ZipInfo(f"{name}/{relative_path}")
                 entry.compress_type = ZIP_DEFLATED
                 entry.external_attr = 0o100644 << 16
                 archive.writestr(entry, path.read_bytes())

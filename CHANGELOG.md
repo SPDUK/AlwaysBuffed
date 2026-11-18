@@ -1,3 +1,7 @@
+# AlwaysBuffed 1.0.1
+
+- The download now includes the GNU General Public License, version 3 only, for the AlwaysBuffed code. This license also covers v1.0.0. The bundled Barlow fonts use the SIL Open Font License 1.1.
+
 # AlwaysBuffed 1.0.0
 
 First public release for World of Warcraft: Forever 1.60.1.

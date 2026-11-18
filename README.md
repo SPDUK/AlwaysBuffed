@@ -36,7 +36,11 @@ The leveling catalog covers 346 distinct items and spells across 28 categories. 
 
 Dual wielders get separate main-hand and off-hand choices for stones, oils and applicable class imbues. A rogue sees **Main-Hand Poison** and **Off-Hand Poison** and can track a different poison on each hand alongside the weapon enhancement. The same slots use class-specific names for Shaman weapon imbues, Mage weapon scrolls and Warlock stones. Switching to a shield or unequipping a weapon removes that hand from the bar while preserving its choices. Shaman spells that automatically choose a hand follow the client's casting rules. The wheel opens outside combat. The bar keeps its assigned actions during combat and refreshes them afterward.
 
-The bundled Barlow SemiBold and Bold typefaces are licensed under the SIL Open Font License. Russian, Korean, and both Chinese locales use Blizzard's locale font. [Barlow license](AlwaysBuffed/Media/Barlow/OFL.txt)
+## License
+
+Copyright (C) 2026 SPDUK. The AlwaysBuffed code is licensed under the GNU General Public License, version 3 only (`GPL-3.0-only`). This grant includes the code released as v1.0.0. [Full license](LICENSE)
+
+The bundled Barlow SemiBold and Bold typefaces are licensed under the SIL Open Font License 1.1. Russian, Korean, and both Chinese locales use Blizzard's locale font. [Barlow license](AlwaysBuffed/Media/Barlow/OFL.txt)
 
 ## Feedback
 

@@ -2,8 +2,10 @@
 ## AllowLoadGameType: camelot
 ## Title: AlwaysBuffed
 ## Author: SPDUK
+## X-Copyright: Copyright (C) 2026 SPDUK
+## X-License: GPL-3.0-only
 ## Notes: Leveling food, consumable shopping lists, and one-click buff reminders for WoW Forever.
-## Version: 1.0.0
+## Version: 1.0.1
 ## Category: Combat
 ## IconTexture: Interface\AddOns\AlwaysBuffed\Media\AlwaysBuffed
 ## SavedVariablesPerCharacter: AlwaysBuffedDB
