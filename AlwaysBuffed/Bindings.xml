@@ -1,8 +1,6 @@
 <Bindings>
     <Binding name="ALWAYSBUFFED_TOGGLE_WHEEL" header="ALWAYSBUFFED" category="ADDONS" />
-    <Binding name="ALWAYSBUFFED_TOGGLE_BAR" category="ADDONS">
-        AlwaysBuffed_ToggleBar()
-    </Binding>
+    <Binding name="ALWAYSBUFFED_TOGGLE_BAR" category="ADDONS" />
     <Binding name="ALWAYSBUFFED_USE_FOOD" category="ADDONS" />
     <Binding name="ALWAYSBUFFED_USE_ELIXIR" category="ADDONS" />
     <Binding name="ALWAYSBUFFED_USE_ELIXIRATTACKPOWER" category="ADDONS" />

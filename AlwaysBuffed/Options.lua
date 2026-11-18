@@ -595,7 +595,7 @@ local function textPair(parent, heading)
     parent:SetScript("OnEnter", showItem)
     parent:SetScript("OnLeave", hideTooltip)
     parent:SetScript("OnHide", hideTooltip)
-    return value, details
+    return value, details, caption
 end
 
 local function dataColumn(parent, right, widthPixels, size, tint)
@@ -718,12 +718,11 @@ local function makeItemRow(parent)
         if widget.shopping then
             navigate(widget.category.key)
         else
-            local pref = A.Prefs(widget.category.key)
-            if pref.pin == widget.itemRow.item.id then
-                pref.pin = nil
-            else
-                pref.pin = widget.itemRow.item.id
-            end
+            local key, itemID = widget.category.key, widget.itemRow.item.id
+            local pref = A.Prefs(key)
+            local pin = pref.pin ~= itemID and itemID or nil
+            local plan = widget.category.kind ~= "reminder" and A.state.categories[key]
+            A.SetTrackedItem(pref, pin, plan)
             A.Update()
         end
     end)
@@ -946,7 +945,7 @@ local function buildCategory(frame)
             separator:SetPoint("BOTTOMLEFT", 0, 9)
         end
         cell:EnableMouse(true)
-        cell.value, cell.details = textPair(cell, caption)
+        cell.value, cell.details, cell.caption = textPair(cell, caption)
         status[index] = cell
     end
     page.cheap = checkbox(page, 146, "Lowest price", function()
@@ -963,7 +962,7 @@ local function buildCategory(frame)
     end)
     page.showUnusable.hint = "Include items and spells you cannot currently use."
     page.clear = button(page, 136, 30, "Use automatic", function()
-        A.Prefs(activePage).pin = nil
+        A.SetTrackedItem(A.Prefs(activePage))
         A.Update()
     end)
     page.clear.hint = "Return to the profile’s ranking and price preferences."
@@ -1057,7 +1056,7 @@ local function buildGeneral(frame)
     end
     setting(bar, 145, "mouseoverOnly", "Show on mouseover", "Reveal the bar on hover. Buff shortcuts still work.")
     setting(bar, 207, "locked", "Lock bar position", "Keep the bar anchored when you drag it.")
-    setting(bar, 269, "collapsed", "Collapse buff bar", "Fold the bar into its handle.")
+    setting(bar, 269, "collapsed", "Collapse buff bar", "In combat, use the checklist or its shortcut.")
     setting(bar, 331, "highlightMissing", "Glow when buffs are missing", "Add a subtle glow to the collapsed bar when a tracked buff is missing.")
     line(bar, 0, 393, 0)
     local barBinding = CreateFrame("Frame", nil, bar)
@@ -1362,6 +1361,13 @@ local function buildPanel()
     arrowRight:SetEndPoint("RIGHT", frame.profile, -11, 2)
     profileCaption:SetPoint("RIGHT", frame.profile, "LEFT", -12, 0)
     profileCaption:SetText("Profile")
+    frame.keepTracked = button(header, 166, 33, "Keep current item", function()
+        local pref = A.Prefs(activePage)
+        A.SetTrackedItem(pref, pref.pin, A.state.categories[activePage])
+        A.Update()
+    end)
+    frame.keepTracked:SetPoint("RIGHT", profileCaption, "LEFT", -18, 0)
+    frame.keepTracked:Hide()
 
     buildSidebar(frame)
     frame.scroll, frame.body = scrollArea(frame, sidebarWidth + contentInset, headerHeight + 18, contentRight, 16)
@@ -1558,6 +1564,13 @@ local function renderCategory(frame, category)
     local pref = A.Prefs(category.key)
     local state = A.state.categories[category.key] or { rows = {} }
     local upgrade = state.upgrade
+    local pin = state.trackedItem
+    local canKeep = pin ~= nil and pin.item.id == pref.pin and pin.eligible
+        and upgrade ~= nil and pin.item.id ~= upgrade.item.id
+    frame.keepTracked:SetShown(canKeep)
+    if canKeep then
+        frame.keepTracked.hint = ("Keep %s and dismiss upgrades available now."):format(pin.name)
+    end
     if frame.highlightItemID and (not upgrade or not upgrade.eligible or upgrade.item.id ~= frame.highlightItemID) then
         frame.highlightItemID = nil
     end
@@ -1651,6 +1664,8 @@ local function renderCategory(frame, category)
         cells[3].details:SetText(statText(nextRow, category, 1))
     end
     cells[1].itemRow, cells[2].itemRow, cells[3].itemRow = buy, bag, nextRow
+    cells[1].caption:SetText(pin and buy == pin and "Tracked item" or "Recommended buy")
+    cells[2].caption:SetText(pin and bag == pin and "Selected in bags" or "Best in bags")
     cells[1].value:SetText(buy and (buy.name or buy.item.name) or (hasMarket and "None eligible" or "No auction items"))
     tintLabel(cells[1].value, buy and color.mint or color.muted)
     if bag and bag.item.spell then
@@ -1682,6 +1697,7 @@ function A.RefreshOptions()
     panel.general:SetShown(activePage == "general")
     panel.appearance:SetShown(activePage == "appearance")
     panel.category:SetShown(category ~= nil)
+    if not category then panel.keepTracked:Hide() end
     panel.empty:ClearAllPoints()
     panel.empty:SetPoint("TOPLEFT", 0, -85)
     panel.empty:SetText("")

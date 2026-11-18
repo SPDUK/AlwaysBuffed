@@ -291,6 +291,40 @@ upgradeContext.info = function(item) return {count = item.id == 910 and 1 or 0} 
 equal(A.PlanCategory(food, foodByGroup, upgradeContext, {pin=911}, survival).upgrade, nil,
     "a stronger raw utility score doesn't upgrade a primary buff")
 
+local trackedChoices = {
+    {id=920, name="Chosen budget option", level=1, stats={agi=5}},
+    {id=921, name="Previously offered premium option", level=1, stats={agi=20}},
+    {id=922, name="Equivalent new option", level=25, stats={agi=5}},
+    {id=923, name="Stronger new budget option", level=30, stats={agi=10}},
+    {id=924, name="Available only when carried", level=30, stats={agi=10}, ownedOnly=true},
+}
+local trackedPrefs = {cheapest=true}
+local owned = {[920]=1}
+local prices = {[920]=10, [921]=500, [922]=30, [923]=50}
+upgradeContext.info = function(item) return {count=owned[item.id], price=prices[item.id]} end
+local function trackedPlan()
+    return A.PlanCategory(food, trackedChoices, upgradeContext, trackedPrefs, survival)
+end
+upgradeContext.level = 20
+A.SetTrackedItem(trackedPrefs, 920, trackedPlan())
+equal(trackedPlan().upgrade, nil, "tracking acknowledges the premium item already available")
+upgradeContext.level = 25
+equal(trackedPlan().upgrade, nil, "a new item equal to the tracked choice does not alert")
+upgradeContext.level = 30
+local seenUpgrade = trackedPlan()
+equal(seenUpgrade.upgrade and seenUpgrade.upgrade.item.id, 923,
+    "an ignored premium item cannot silence a new upgrade over the tracked choice")
+equal(seenUpgrade.bag.item.id, 920, "the manual action is unchanged even with an alert")
+owned[924] = 1
+equal(trackedPlan().upgrade, nil, "an equivalent carried item clears the alert without replacing the pin")
+owned[924] = nil
+trackedPrefs.enabled = false
+equal(trackedPlan().upgrade, nil, "inactive tracked categories do not alert")
+trackedPrefs.enabled = true
+A.SetTrackedItem(trackedPrefs, 920, trackedPlan())
+equal(trackedPlan().upgrade, nil, "keeping the budget choice acknowledges its new upgrade and the premium option stays quiet")
+equal(trackedPlan().bag.item.id, 920, "acknowledgment preserves the originally tracked budget choice")
+
 for _, example in ipairs(specChoices) do
     local class, key, category, preferred, alternative = unpack(example)
     local profile = A.SelectProfile(A.profiles[class], key, {})

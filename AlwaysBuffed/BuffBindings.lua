@@ -4,6 +4,7 @@ local PREFIX = "ALWAYSBUFFED_USE_"
 local BAR_TOGGLE = "ALWAYSBUFFED_TOGGLE_BAR"
 local RETIRED = "ALWAYSBUFFED_USE_BUFFDRINKS"
 local categories, proxies = {}, {}
+local installedTargets = {}
 local owner, updating, signature, retiredPending
 
 local function command(key)
@@ -27,9 +28,12 @@ local function buttonName(key, chord)
     return "AlwaysBuffedHotkey_" .. key .. (usesWheelStep(chord) and "_Wheel" or "")
 end
 
+local function isOurClick(action, name)
+    return name and (action == "CLICK " .. name or action == "CLICK " .. name .. ":LeftButton")
+end
+
 local function isOurAction(action, binding, name)
-    return not action or action == "" or action == binding
-        or (name and (action == "CLICK " .. name or action == "CLICK " .. name .. ":LeftButton"))
+    return not action or action == "" or action == binding or isOurClick(action, name)
 end
 
 function A.IsRetiredBuffBinding(action)
@@ -78,23 +82,28 @@ local function updateOverrides()
     if not owner or updating or InCombatLockdown() then return end
 
     local desired, keys = {}, {}
-    for _, category in ipairs(A.categories) do
-        local binding = command(category.key)
+    local function collect(binding, category)
         for _, chord in ipairs({ GetBindingKey(binding) }) do
-            if isOurAction(GetBindingAction(chord, true), binding, buttonName(category.key, chord)) then
-                desired[#desired + 1] = { category = category, chord = chord }
+            local target = category and buttonName(category.key, chord) or A.barShortcutName
+            local effective = GetBindingAction(chord, true)
+            if isOurAction(effective, binding, target) or isOurClick(effective, installedTargets[chord]) then
+                desired[#desired + 1] = { category = category, chord = chord, target = target }
                 keys[#keys + 1] = binding .. "=" .. chord
             end
         end
     end
+    collect(BAR_TOGGLE)
+    for _, category in ipairs(A.categories) do collect(command(category.key), category) end
     local nextSignature = table.concat(keys, "\n")
     if signature == nextSignature then return end
 
     signature, updating = nextSignature, true
     ClearOverrideBindings(owner)
+    installedTargets = {}
     for _, entry in ipairs(desired) do
-        local name = ensureProxy(entry.category, entry.chord)
-        SetOverrideBindingClick(owner, false, entry.chord, name)
+        if entry.category then ensureProxy(entry.category, entry.chord) end
+        SetOverrideBindingClick(owner, false, entry.chord, entry.target)
+        installedTargets[entry.chord] = entry.target
     end
     updating = false
 end
@@ -143,11 +152,7 @@ function A.SetBuffBinding(key, chord)
 end
 
 function A.SetBarToggleBinding(chord)
-    return setNativeBinding(BAR_TOGGLE, chord)
-end
-
-function AlwaysBuffed_ToggleBar()
-    A.ToggleBuffBar()
+    return setNativeBinding(BAR_TOGGLE, chord, A.barShortcutName)
 end
 
 function A.RefreshBuffBindings()

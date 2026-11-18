@@ -85,3 +85,30 @@ event(nil, "BAG_UPDATE_DELAYED")
 after()
 assert(food().bag.item.id == 20074 and not food().upgrade)
 print("Level-up and bag events promoted and cleared a Survival hunter's food upgrade.")
+
+level, carried = 20, {[3664] = 6}
+AlwaysBuffedDB = {profile = "survival", preferences = {survival = {food = {pin = 3664}}}}
+event(nil, "PLAYER_LOGIN")
+local trackedFood = A.Prefs("food")
+assert(food().bag.item.id == 3664 and not food().upgrade, "an old pin is initialized without showing existing choices")
+event(nil, "PLAYER_LEVEL_UP", 25)
+after()
+assert(food().upgrade and food().upgrade.item.id == 20074,
+    "learning level 25 restores the upgrade badge even with tracked Crocolisk Gumbo")
+assert(food().buy.item.id == 3664 and food().bag.item.id == 3664, "an upgrade does not replace the tracked action")
+level = 25
+event(nil, "PLAYER_LOGIN")
+assert(food().upgrade and food().upgrade.item.id == 20074, "the alert persists across login")
+carried[20074] = 1
+event(nil, "BAG_UPDATE_DELAYED")
+after()
+assert(not food().upgrade and food().bag.item.id == 3664, "carrying the upgrade removes the badge without changing the action")
+carried[20074] = nil
+A.SetTrackedItem(trackedFood, 3664, food())
+A.Update()
+assert(not food().upgrade and trackedFood.pin == 3664, "keeping the current choice acknowledges the current options")
+event(nil, "PLAYER_LEVEL_UP", 35)
+after()
+assert(food().upgrade and food().upgrade.item.id == 13932 and food().bag.item.id == 3664,
+    "a stronger later unlock brings the badge back while the tracked item stays assigned")
+print("Tracked food preserves its action across unlocks, acquiring upgrades, acknowledgment, and reload.")

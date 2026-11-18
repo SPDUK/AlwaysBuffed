@@ -1,6 +1,6 @@
 # AlwaysBuffed
 
-<img align="right" width="96" height="96" src="docs/alwaysbuffed-icon.png" alt="AlwaysBuffed elixir icon">
+<img align="right" width="96" height="96" src="docs/alwaysbuffed-icon.png" alt="AlwaysBuffed spell checklist icon">
 
 AlwaysBuffed ranks food, elixirs, weapon buffs, and other consumables for your spec in **World of Warcraft: Forever**. See what to buy, what you already carry, and which buffs are running out. Use items from the bar or radial wheel.
 
@@ -23,8 +23,8 @@ Open **/ab**, **/alwaysbuffed**, or left-click the minimap button. The shopping 
 | Track an item | Gives your chosen item priority when eligible. If you carry it, the bar will use it first. Clear that choice to resume automatic selection. |
 | Lowest price | Recommends the cheapest eligible, purchasable item with a known Auctionator price. If there are no prices, it falls back to the profile ranking. |
 | Buff bar | A solid gold border means the buff is active. Each hand has its own border and timer. Click an icon to use the best eligible item in your bags. Food falls back through lower-ranked buff food to plain recovery food. Click the grip to collapse or expand, drag it to move, or Shift-click it for settings. |
-| Upgrade marker | A small **+** means a stronger eligible purchase is missing from your bags. Right-click to open its category with the upgrade highlighted. Getting the recommended item or manually tracking your carried choice clears the marker. Equal-strength alternatives do not trigger it. |
-| Bar layout | In **General**, set the **Bar toggle shortcut**, choose **Horizontal** or **Vertical**, or enable **Show on mouseover**. A toggle pressed in combat takes effect after combat. The grip scales with the other buff icons. When collapsed, it shows **missing \| active**. A soft red number means at least one buff is missing. **Glow when buffs are missing** adds a subtle glow and starts off. |
+| Upgrade marker | A **+** marks a stronger eligible purchase. Tracking an item remembers the options available at that point. A newly unlocked upgrade can bring back the **+** while your item stays assigned. Right-click to see the highlighted upgrade. **Keep current item** dismisses the current suggestions. Carrying an equally strong or better option also clears the marker. |
+| Bar layout | Click the checklist or press the **Bar toggle shortcut** to expand or fold the list, including in combat. In **General**, set the shortcut, choose **Horizontal** or **Vertical**, or enable **Show on mouseover**. The grip scales with the other buff icons. When collapsed, it shows **missing \| active**. A soft red number means at least one buff is missing. **Glow when buffs are missing** adds a subtle glow and starts off. |
 | Buff shortcuts | Open a buff category and choose **Set shortcut**, then press a key or key combination. Choose **Clear** to remove it. Each shortcut uses that category’s current bag choice or spell, even with the bar collapsed, hidden, or set to mouseover. Each hand can have its own shortcut. WoW’s native keybinding menu also lists the actions. Changes to secure actions take effect outside combat. |
 | Buff wheel | Set a shortcut in **General**. Hold it, move toward a slice and release to use the item. Return to the center or press Escape to cancel. The wheel opens at screen center and starts unbound. Right-click the grip or minimap, or use **/ab wheel**, for the clickable version. |
 | Button labels | The timer sits in the center. The lower-left count shows items in your bags or stacks of Well-Rested. Weapon buttons show **MH** or **OH** at bottom right. Hover to look up a shortcut. |

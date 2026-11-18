@@ -25,12 +25,10 @@ for _, category in ipairs(A.categories) do
     assert(xml:find('name="' .. command(category.key) .. '"', 1, true), category.key .. " lacks a native command")
 end
 assert(xml:find('name="ALWAYSBUFFED_TOGGLE_WHEEL"', 1, true))
-assert(xml:match('<Binding name="' .. BAR .. '"[^>]*>(.-)</Binding>'), "native bar toggle command body")
+assert(xml:match('<Binding name="' .. BAR .. '"[^>]*/>'), "native bar shortcut is registered for secure CLICK routing")
 local _, total = xml:gsub('<Binding name=', '')
 assert(total == 30 and total == #A.categories + 2, "class categories, wheel and bar bindings are registered")
 assert(not xml:find(RETIRED, 1, true), "retired Buff Drinks command is absent from native settings")
-local invokeBar = assert(loadstring(xml:match('<Binding name="' .. BAR .. '"[^>]*>(.-)</Binding>')))
-
 local activeSet, savedSet = 2
 local sets = {
     [1] = { H = "JUMP", K = RETIRED },
@@ -100,9 +98,9 @@ function SaveBindings(bindingSet)
     assert(bindingSet == activeSet, "only the active set is saved")
     savedSet, saveWrites = bindingSet, saveWrites + 1
 end
-function SetOverrideBindingClick(owner, _, chord, button)
+function SetOverrideBindingClick(owner, _, chord, button, mouseButton)
     assert(not inCombat, "override changed during combat")
-    overrides[chord] = {owner = owner, action = "CLICK " .. button .. ":LeftButton"}
+    overrides[chord] = {owner = owner, action = "CLICK " .. button .. ":" .. (mouseButton or "LeftButton")}
     fire("UPDATE_BINDINGS")
 end
 function ClearOverrideBindings(owner)
@@ -156,30 +154,36 @@ assert(press("O", false) == "item:6947", "the native secondary key stays valid")
 assert(AlwaysBuffedHotkey_food.parent == UIParent and not AlwaysBuffedHotkey_food.mouse)
 assert(AlwaysBuffedHotkey_food.alpha == 0 and AlwaysBuffedHotkey_food.template == "SecureActionButtonTemplate")
 
-local toggles = 0
-A.ToggleBuffBar = function()
-    toggles = toggles + 1
-    A.db.collapsed = not A.db.collapsed
-end
+local barClick = "CLICK AlwaysBuffedBarShortcut:LeftButton"
 assert(not A.SetBarToggleBinding("J") and not A.SetBarToggleBinding("O") and not A.SetBarToggleBinding("CTRL-R"))
 external.F7 = "CLICK DifferentAddOn:LeftButton"
 assert(not A.SetBarToggleBinding("F7"))
 external.F7 = nil
 assert(A.SetBarToggleBinding("SHIFT-F7") and A.GetBarToggleBinding() == "SHIFT-F7")
-assert(savedSet == 2 and GetBindingAction("SHIFT-F7", true) == BAR and not overrides["SHIFT-F7"])
+assert(savedSet == 2 and GetBindingAction("SHIFT-F7") == BAR and GetBindingAction("SHIFT-F7", true) == barClick)
+assert(A.SetBarToggleBinding("SHIFT-F7"), "rebinding the same chord accepts its own override")
 assert(not A.SetBuffBinding("food", "SHIFT-F7") and press("F", false) == "item:787")
-invokeBar()
-assert(toggles == 1 and not A.db.collapsed, "native shortcut invokes the same bar toggle API")
-invokeBar()
-assert(toggles == 2 and A.db.collapsed)
 SetBinding("F6", BAR)
 assert(A.GetBarToggleBinding() == "F6", "native changes update the primary chord")
+assert(GetBindingAction("F6", true) == barClick and GetBindingAction("SHIFT-F7", true) == barClick)
+external.F6 = "CLICK DifferentAddOn:LeftButton"
+fire("UPDATE_BINDINGS")
+assert(GetBindingAction("F6", true) == external.F6 and not overrides.F6)
+external.F6 = nil
+fire("UPDATE_BINDINGS")
+assert(GetBindingAction("F6", true) == barClick)
 failKey = "F8"
 assert(not A.SetBarToggleBinding("F8") and A.GetBarToggleBinding() == "F6")
 failKey = nil
 assert(A.SetBarToggleBinding(nil) and A.GetBarToggleBinding() == nil)
-assert(GetBindingAction("SHIFT-F7") == "" and GetBindingAction("F6") == "")
+assert(GetBindingAction("SHIFT-F7", true) == "" and GetBindingAction("F6", true) == "")
 assert(A.SetBarToggleBinding("SHIFT-F7"))
+SetBinding("SHIFT-F7", command("food"))
+assert(not A.GetBarToggleBinding() and press("SHIFT-F7", false) == "item:787",
+    "a native reassignment displaces the stale bar override immediately")
+SetBinding("SHIFT-F7", BAR)
+assert(A.GetBarToggleBinding() == "SHIFT-F7" and GetBindingAction("SHIFT-F7", true) == barClick,
+    "a native reassignment from buff use reaches the bar immediately")
 
 assert(not A.SetBuffBinding("food", "J") and not A.SetBuffBinding("food", "CTRL-R"))
 assert(not A.SetBuffBinding("food", "O") and press("O", false) == "item:6947")
@@ -209,6 +213,7 @@ assert(not A.SetBarToggleBinding(nil) and A.GetBarToggleBinding() == "SHIFT-F7")
 A.RefreshBuffBindings()
 fire("UPDATE_BINDINGS")
 assert(writes == before and press("H", false) == "item:787")
+assert(GetBindingAction("SHIFT-F7", true) == barClick)
 inCombat = false
 fire("PLAYER_REGEN_ENABLED")
 assert(press("H", false) == "item:4592")

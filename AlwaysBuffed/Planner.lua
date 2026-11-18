@@ -38,12 +38,47 @@ local function rankOrder(left, right)
     return left.item.id < right.item.id
 end
 
-local function improvesBag(buy, bag)
-    if not buy or buy.count > 0 or buy.group == "notUseful" then return false end
-    if not bag then return true end
-    if buy.group ~= bag.group then return rankGroups[buy.group] < rankGroups[bag.group] end
+local function improves(candidate, current)
+    if not candidate or candidate.group == "notUseful" then return false end
+    if not current then return true end
+    if candidate.group ~= current.group then return rankGroups[candidate.group] < rankGroups[current.group] end
     -- Ranking ties can change the recommended item without improving its effect.
-    return buy.score - bag.score > 1e-9
+    return candidate.score - current.score > 1e-9
+end
+
+local function viable(row)
+    return row.eligible and (row.canBuy or row.count > 0 or row.item.spell)
+end
+
+local function trackedOptions(prefs)
+    local saved = prefs.trackedOptions
+    if type(saved) == "table" and saved.pin == prefs.pin and type(saved.items) == "table" then return saved.items end
+end
+
+function A.SetTrackedItem(prefs, pin, plan)
+    prefs.pin, prefs.trackedOptions = pin, nil
+    if not pin or not plan then return end
+    local items = {}
+    for _, row in ipairs(plan.rows) do
+        if viable(row) then items[row.item.id] = true end
+    end
+    prefs.trackedOptions = {pin = pin, items = items}
+end
+
+function A.SeedTrackedOptions(prefs, plan)
+    if plan.trackedItem and not trackedOptions(prefs) then A.SetTrackedItem(prefs, prefs.pin, plan) end
+end
+
+local function newTrackedUpgrade(rows, seen, pinned, bag)
+    local baseline = improves(bag, pinned) and bag or pinned
+    local candidate
+    for _, row in ipairs(rows) do
+        if row.eligible and row.canBuy and row.count == 0
+            and not seen[row.item.id] and improves(row, candidate) then
+            candidate = row
+        end
+    end
+    if improves(candidate, baseline) then return candidate end
 end
 
 local function restriction(item, level, count, ctx, weapon, weaponSubclass, weaponRequired)
@@ -162,8 +197,9 @@ function A.PlanCategory(category, catalog, ctx, prefs, profile)
     end
     table.sort(result.rows, rankOrder)
     for _, row in ipairs(result.rows) do
+        local pinned = prefs.pin == row.item.id
+        if pinned and category.kind ~= "reminder" then result.trackedItem = row end
         if row.eligible then
-            local pinned = prefs.pin == row.item.id
             local useful = row.group ~= "notUseful"
             if row.canBuy then
                 if useful and not result.buy then result.buy = row end
@@ -177,6 +213,7 @@ function A.PlanCategory(category, catalog, ctx, prefs, profile)
         end
     end
     result.buy = pinnedBuy or (prefs.cheapest and cheapest) or result.buy
+    local bestBag = result.bag
     result.bag = pinnedBag or result.bag
     if category.slot and #result.rows == 0 then result.applicable = false end
     if category.key == "campfire" and not result.bag then
@@ -208,8 +245,15 @@ function A.PlanCategory(category, catalog, ctx, prefs, profile)
         A.UpdateReminderVisibility(category, result)
     else
         result.tracked = tracked and result.applicable
-        if result.tracked and not pinnedBag and improvesBag(result.buy, result.bag) then
-            result.upgrade = result.buy
+        if result.tracked then
+            local seen, pinned = trackedOptions(prefs), result.trackedItem
+            if seen and pinned and viable(pinned) then
+                result.upgrade = newTrackedUpgrade(result.rows, seen, pinned, bestBag)
+            end
+            if not result.upgrade and not pinnedBag and result.buy and result.buy.count == 0
+                and improves(result.buy, result.bag) then
+                result.upgrade = result.buy
+            end
         end
     end
     return result

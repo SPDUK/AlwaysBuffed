@@ -2,13 +2,14 @@ local _, A = ...
 
 local T, C = A.theme, A.theme.colors
 local addonIcon = "Interface\\AddOns\\AlwaysBuffed\\Media\\AlwaysBuffed"
+A.barShortcutName = "AlwaysBuffedBarShortcut"
 local BAR_SIZE, GAP = 40, 4
 local GRIP_SIZE = BAR_SIZE + 2 * GAP
 local bar, tray, grip, minimap
 local missingCount, activeCount = 0, 0
 local buttons, tints = {}, {}
 local layoutKey, currentScale, hoverMode, hoverAlpha
-local revealFromKey, pendingCollapse, pendingReveal
+local revealFromKey
 
 local function solid(frame, layer, color, alpha, sublevel)
     local tex = frame:CreateTexture(nil, layer, nil, sublevel or 0)
@@ -40,7 +41,6 @@ local function tileArtwork(frame, tile)
     inset(keyline, tile, 2)
     local icon = frame:CreateTexture(nil, "ARTWORK")
     inset(icon, tile, 3)
-    icon:SetTexCoord(0.075, 0.925, 0.075, 0.925)
     return icon
 end
 
@@ -48,6 +48,15 @@ local function font(frame, size, flags, maxSize)
     local fs = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     T.Font(fs, size, true, flags, maxSize)
     return fs
+end
+
+local function gripCounter(frame, corner, offset)
+    local label = font(frame, 11, "OUTLINE", 11)
+    label:SetPoint(corner, frame, corner, offset, 2)
+    label:SetHeight(13)
+    label.backing = solid(frame, "ARTWORK", C.panel, 0.96, 1)
+    inset(label.backing, label, -1)
+    return label
 end
 
 local function showTooltip(button)
@@ -135,6 +144,7 @@ local function makeAction(parent, category, size)
     rim:Hide()
     button.activeBorder = rim
     button.icon = tileArtwork(button, face)
+    button.icon:SetTexCoord(0.075, 0.925, 0.075, 0.925)
 
     -- Fixed-size icons reserve one center line and two lower corners.
     -- Bar scale enlarges all three labels together with their artwork.
@@ -396,13 +406,8 @@ local function positionGrip(count)
 end
 
 local function layoutActions(visible)
-    if #visible == 0 or A.db.collapsed then
-        if layoutKey ~= "folded" then
-            layoutKey = "folded"
-            bar.outline:ClearAllPoints()
-            inset(bar.outline, bar, 0)
-        end
-        tray:Hide()
+    if #visible == 0 then
+        layoutKey = nil
         return
     end
     local scale = bar:GetScale()
@@ -450,9 +455,9 @@ local function layoutActions(visible)
         tray:SetPoint(from, bar, to, 0, 0)
         tray:SetSize(width, height)
         local farCorner = (growDown and "BOTTOM" or "TOP") .. (growRight and "RIGHT" or "LEFT")
-        bar.outline:ClearAllPoints()
-        bar.outline:SetPoint(from, bar, from, 0, 0)
-        bar.outline:SetPoint(farCorner, tray, farCorner, 0, 0)
+        tray.outline:ClearAllPoints()
+        tray.outline:SetPoint(from, bar, from, 0, 0)
+        tray.outline:SetPoint(farCorner, tray, farCorner, 0, 0)
         for _, b in pairs(buttons) do b:Hide() end
         for i, cat in ipairs(visible) do
             local b = buttons[cat.key]
@@ -467,7 +472,6 @@ local function layoutActions(visible)
             b:Show()
         end
     end
-    tray:Show()
 end
 
 local function updateHover()
@@ -493,28 +497,63 @@ local function setHoverMode()
     if enabled then updateHover() end
 end
 
-function A.ToggleBuffBar(fromShortcut)
-    if not A.db then return end
-    local nextCollapsed
-    if pendingCollapse ~= nil then nextCollapsed = not pendingCollapse
-    else nextCollapsed = A.db.showBar and not A.db.collapsed end
-    if InCombatLockdown() then
-        pendingCollapse = nextCollapsed
-        pendingReveal = fromShortcut ~= false
-        return
+-- Both hardware inputs toggle the same prepared tray. Only visibility changes
+-- in combat; the protected action buttons keep their layout and assignments.
+local toggleClick = [[
+    local shortcut = self:GetAttribute("shortcut")
+    if not shortcut and (button ~= "LeftButton" or IsShiftKeyDown()) then return end
+    local bar, tray = self:GetFrameRef("bar"), self:GetFrameRef("tray")
+    local collapsed = bar:IsShown() and not bar:GetAttribute("collapsed")
+    bar:SetAttribute("collapsed", collapsed)
+    if collapsed or not tray:GetAttribute("hasActions") then tray:Hide() else tray:Show() end
+    bar:Show()
+    self:CallMethod("FoldChanged", collapsed, shortcut)
+]]
+
+local function refreshVisibleStatuses()
+    local now = GetTime()
+    for _, button in pairs(buttons) do
+        if button:IsShown() and button.state then
+            updateStatus(button, now)
+            if GameTooltip:IsOwned(button) then showTooltip(button) end
+        end
     end
-    pendingCollapse, pendingReveal = nil, nil
-    A.db.showBar, A.db.collapsed = true, nextCollapsed
-    revealFromKey = fromShortcut ~= false and not nextCollapsed and A.db.mouseoverOnly
-    A.RefreshActions()
+end
+
+local function foldChanged(_, collapsed, shortcut)
+    A.db.showBar, A.db.collapsed = true, collapsed
+    revealFromKey = shortcut and not collapsed and A.db.mouseoverOnly
+    A.RefreshGripCounts()
+    if tray:IsShown() then refreshVisibleStatuses() end
+    if hoverMode then updateHover() end
+    A.RefreshOptions()
+end
+
+local function configureToggle(button, shortcut)
+    button:SetFrameRef("bar", bar)
+    button:SetFrameRef("tray", tray)
+    button:SetAttribute("shortcut", shortcut)
+    button:SetAttribute("_onclick", toggleClick)
+    button.FoldChanged = foldChanged
+end
+
+-- Preserve the old callable binding for saved /run macros. A scripted call
+-- during combat records the preference for the next out-of-combat layout.
+function AlwaysBuffed_ToggleBar()
+    if not A.db then return end
+    A.db.collapsed = A.db.showBar and not A.db.collapsed
+    A.db.showBar = true
+    revealFromKey = not A.db.collapsed and A.db.mouseoverOnly
+    if not InCombatLockdown() then A.RefreshActions() end
     A.RefreshOptions()
 end
 
 local function gripTooltip(self)
+    local collapsed = bar:GetAttribute("collapsed")
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:SetText("AlwaysBuffed")
-    GameTooltip:AddLine(A.db.collapsed and "Click to expand the buff bar." or "Click to collapse the buff bar.")
-    if A.db.collapsed then
+    GameTooltip:AddLine(collapsed and "Click to expand the buff bar." or "Click to collapse the buff bar.")
+    if collapsed then
         GameTooltip:AddLine(("%d missing"):format(missingCount), unpack(missingCount > 0 and C.missing or C.muted))
         GameTooltip:AddLine(("%d active"):format(activeCount), unpack(C.mint))
     end
@@ -531,7 +570,9 @@ end
 
 function A.RefreshGripCounts()
     if not grip then return end
-    local collapsed = A.db.collapsed == true
+    local collapsed = bar:GetAttribute("collapsed") == true
+    bar.outline:SetShown(not tray:IsShown())
+    bar.fill:SetShown(not tray:IsShown())
     if collapsed then
         local now = GetTime()
         missingCount, activeCount = 0, 0
@@ -550,7 +591,9 @@ function A.RefreshGripCounts()
         grip.activeText:SetText(tostring(activeCount))
     end
     grip.missingText:SetShown(collapsed)
+    grip.missingText.backing:SetShown(collapsed)
     grip.activeText:SetShown(collapsed)
+    grip.activeText.backing:SetShown(collapsed)
     grip.countDivider:SetShown(collapsed)
     grip.missingGlow:SetShown(collapsed and A.db.highlightMissing == true and missingCount > 0)
     for _, dot in ipairs(grip.dragDots) do dot:SetShown(not collapsed) end
@@ -576,37 +619,42 @@ function A.RefreshActions()
     if minimap then minimap:SetShown(A.db.showMinimap) end
     A.RefreshBuffBindings()
     setHoverMode()
-    grip.countBackdrop:SetShown(A.db.collapsed == true)
+    if not locked then
+        positionGrip(#visible)
+        layoutActions(visible)
+        bar:SetAttribute("collapsed", A.db.collapsed == true)
+        tray:SetAttribute("hasActions", #visible > 0)
+        tray:SetShown(#visible > 0 and not A.db.collapsed)
+        bar:SetShown(A.db.showBar)
+    end
     A.RefreshGripCounts()
-    if locked then return end
-    positionGrip(#visible)
-    layoutActions(visible)
     if hoverMode then updateHover() end
-    bar:SetShown(A.db.showBar)
 end
 
 function A.InitActions()
     if bar or InCombatLockdown() then return end
-    bar = CreateFrame("Frame", "AlwaysBuffedBar", UIParent)
+    bar = CreateFrame("Frame", "AlwaysBuffedBar", UIParent, "SecureFrameTemplate")
     bar:SetSize(GRIP_SIZE, GRIP_SIZE)
     bar:SetClampedToScreen(true)
     bar:SetFrameStrata("MEDIUM")
     bar:Hide()
     bar.outline = solid(bar, "BACKGROUND", C.edge, 0.96)
-    inset(solid(bar, "BORDER", C.panel, 0.96), bar.outline, 1)
-    tray = CreateFrame("Frame", nil, bar)
+    inset(bar.outline, bar, 0)
+    bar.fill = solid(bar, "BORDER", C.panel, 0.96)
+    inset(bar.fill, bar.outline, 1)
+    tray = CreateFrame("Frame", nil, bar, "SecureFrameTemplate")
+    tray.outline = solid(tray, "BACKGROUND", C.edge, 0.96)
+    inset(solid(tray, "BORDER", C.panel, 0.96), tray.outline, 1)
 
-    grip = CreateFrame("Button", "AlwaysBuffedBarFold", bar)
+    grip = CreateFrame("Button", "AlwaysBuffedBarFold", bar, "SecureHandlerClickTemplate")
+    configureToggle(grip, false)
     grip:SetAllPoints()
     grip:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     grip:RegisterForDrag("LeftButton")
     local face = tileFace(grip, BAR_SIZE)
     grip.icon = tileArtwork(grip, face)
+    grip.icon:SetTexCoord(0, 1, 0, 1)
     grip.icon:SetTexture(addonIcon)
-    grip.countBackdrop = solid(grip, "ARTWORK", C.panel, 0.96, 1)
-    grip.countBackdrop:SetPoint("BOTTOMLEFT", face, "BOTTOMLEFT", 3, 3)
-    grip.countBackdrop:SetPoint("BOTTOMRIGHT", face, "BOTTOMRIGHT", -3, 3)
-    grip.countBackdrop:SetHeight(14)
     grip.dragDots = {}
     for col = -1, 1 do
         local dot = solid(grip, "ARTWORK", C.muted, 0.85, 2)
@@ -614,17 +662,11 @@ function A.InitActions()
         dot:SetPoint("BOTTOM", face, "BOTTOM", col * 4, 5)
         grip.dragDots[#grip.dragDots + 1] = dot
     end
-    grip.missingText = font(grip, 11)
-    grip.missingText:SetPoint("BOTTOM", face, "BOTTOM", -9, 2)
-    grip.missingText:SetWidth(17)
-    grip.missingText:SetJustifyH("CENTER")
-    grip.activeText = font(grip, 11)
-    grip.activeText:SetPoint("BOTTOM", face, "BOTTOM", 9, 2)
-    grip.activeText:SetWidth(17)
-    grip.activeText:SetJustifyH("CENTER")
+    grip.missingText = gripCounter(grip, "BOTTOMLEFT", 4)
+    grip.activeText = gripCounter(grip, "BOTTOMRIGHT", -4)
     grip.countDivider = solid(grip, "ARTWORK", C.edge, 1, 2)
-    grip.countDivider:SetPoint("BOTTOM", face, "BOTTOM", 0, 4)
-    grip.countDivider:SetSize(1, 9)
+    grip.countDivider:SetPoint("BOTTOM", 0, 1)
+    grip.countDivider:SetSize(1, 5)
     grip.missingGlow = grip:CreateTexture(nil, "BACKGROUND")
     grip.missingGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
     grip.missingGlow:SetBlendMode("ADD")
@@ -632,11 +674,9 @@ function A.InitActions()
     grip.missingGlow:SetPoint("CENTER")
     tintGrip()
     solid(grip, "HIGHLIGHT", C.text, 0.13):SetAllPoints(face)
-    grip:SetScript("OnClick", function(_, button)
+    grip:SetScript("PostClick", function(_, button)
         if button == "RightButton" then A.ToggleWheel()
         elseif IsShiftKeyDown() then A.ToggleOptions()
-        else
-            A.ToggleBuffBar(false)
         end
     end)
     grip:SetScript("OnEnter", gripTooltip)
@@ -648,6 +688,13 @@ function A.InitActions()
     for _, category in ipairs(A.categories) do
         buttons[category.key] = makeAction(tray, category, BAR_SIZE)
     end
+    -- The shortcut can restore a hidden bar, so its target lives outside it.
+    local shortcut = CreateFrame("Button", A.barShortcutName, UIParent, "SecureHandlerClickTemplate")
+    shortcut:SetSize(1, 1)
+    shortcut:SetPoint("BOTTOMLEFT", UIParent, "TOPLEFT", -20, 20)
+    shortcut:EnableMouse(false)
+    shortcut:RegisterForClicks("AnyDown")
+    configureToggle(shortcut, true)
     makeMinimap()
     A.InitBuffBindings()
     T.OnChange(function()
@@ -659,32 +706,15 @@ function A.InitActions()
         A.RefreshActions()
     end)
     C_Timer.NewTicker(1, function()
-        if bar:IsVisible() and A.db.collapsed then
+        if bar:IsVisible() and bar:GetAttribute("collapsed") then
             A.RefreshGripCounts()
-        elseif bar:IsVisible() then
-            local now = GetTime()
-            for _, b in pairs(buttons) do
-                if b:IsShown() and b.state then
-                    updateStatus(b, now)
-                    if GameTooltip:IsOwned(b) then showTooltip(b) end
-                end
-            end
+        elseif tray:IsVisible() then
+            refreshVisibleStatuses()
         end
     end)
     local events = CreateFrame("Frame")
     events:RegisterEvent("BAG_UPDATE_COOLDOWN")
-    events:RegisterEvent("PLAYER_REGEN_ENABLED")
-    events:SetScript("OnEvent", function(_, event)
-        if event == "PLAYER_REGEN_ENABLED" then
-            if pendingCollapse ~= nil then
-                A.db.collapsed, A.db.showBar = pendingCollapse, true
-                revealFromKey = pendingReveal and not pendingCollapse and A.db.mouseoverOnly
-                pendingCollapse, pendingReveal = nil, nil
-                A.RefreshActions()
-                A.RefreshOptions()
-            end
-            return
-        end
+    events:SetScript("OnEvent", function()
         for _, b in pairs(buttons) do
             if b.category.key == "sleepingBag" and b:IsShown() then updateStatus(b, GetTime()) end
         end

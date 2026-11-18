@@ -6,15 +6,23 @@ local A = {
 }
 local M, all = {}, {}
 local locked, now, tick, cooldownReads = false, 1000, nil, 0
-local bindings, opened = {}, {}
-function M:SetSize(w, h) self.w, self.h = w, h end
-function M:SetWidth(w) self.w = w end
+local bindings, overrides, opened, settings, wheel = {}, {}, {}, 0, 0
+local shift = false
+local secure = dofile("tests/secure-click.lua")
+local function guard(frame, action, allowedInSnippet)
+    assert(not locked or not frame.protected or (allowedInSnippet and secure.running),
+        "protected " .. action .. " changed insecurely in combat on " .. (frame.name or "unnamed frame"))
+end
+function M:SetSize(w, h) guard(self, "size") self.w, self.h = w, h end
+function M:SetWidth(w) guard(self, "width") self.w = w end
+function M:SetHeight(h) guard(self, "height") self.h = h end
 function M:GetWidth() return self.w or (self.allPoints and self.allPoints:GetWidth()) end
 function M:GetHeight() return self.h or (self.allPoints and self.allPoints:GetHeight()) end
-function M:SetScale(s) self.scale = s end
+function M:SetScale(s) guard(self, "scale") self.scale = s end
 function M:GetScale() return self.scale end
 function M:GetEffectiveScale() return self.scale * (self.parent and self.parent:GetEffectiveScale() or 1) end
 function M:SetPoint(...)
+    guard(self, "anchor")
     self.anchor = {...}
     self.allPoints = nil
     for i, existing in ipairs(self.points) do
@@ -22,7 +30,7 @@ function M:SetPoint(...)
     end
     self.points[#self.points + 1] = self.anchor
 end
-function M:ClearAllPoints() self.anchor, self.allPoints, self.points = nil, nil, {} end
+function M:ClearAllPoints() guard(self, "anchor") self.anchor, self.allPoints, self.points = nil, nil, {} end
 function M:SetAllPoints(target)
     self:ClearAllPoints()
     self.allPoints = target or self.parent
@@ -61,7 +69,7 @@ local function rect(frame)
         xPoints[#xPoints + 1] = {x, left + w * tx + (dx or 0) * scale}
         yPoints[#yPoints + 1] = {y, bottom + h * ty + (dy or 0) * scale}
     end
-    local left, w = dimension(xPoints, (frame.w or 0) * scale)
+    local left, w = dimension(xPoints, (frame.w or (frame.text and frame:GetStringWidth()) or 0) * scale)
     local bottom, h = dimension(yPoints, (frame.h or 0) * scale)
     return left, bottom, w, h
 end
@@ -76,10 +84,10 @@ function M:GetRight() return self:GetCenter() + self.w / 2 end
 function M:GetTop() return select(2, self:GetCenter()) + self.h / 2 end
 function M:SetScript(event, fn) self.scripts[event] = fn end
 function M:RegisterEvent(event) self.events[event] = true end
-function M:RegisterForClicks(...) self.clicks = {...} end
-function M:SetShown(value) self.shown = value end
-function M:Show() self.shown = true end
-function M:Hide() self.shown = false end
+function M:RegisterForClicks(...) guard(self, "click registration") self.clicks = {...} end
+function M:SetShown(value) guard(self, "visibility", true) self.shown = value end
+function M:Show() self:SetShown(true) end
+function M:Hide() self:SetShown(false) end
 function M:IsShown() return self.shown end
 function M:IsVisible() return self.shown and (not self.parent or self.parent:IsVisible()) end
 function M:IsMouseOver() return self.hovered end
@@ -89,20 +97,37 @@ function M:GetStringWidth() return #(self.text or "") * 7 * (self.textScale or 1
 function M:SetTexture(id) self.texture = id end
 function M:SetAlpha(value) self.alpha = value end
 function M:SetDesaturated(value) self.desaturated = value end
-function M:SetAttribute(key, value) self[key] = value end
-function M:CreateTexture() return CreateFrame("Texture", nil, self) end
+function M:SetAttribute(key, value) guard(self, "attribute", true) self[key] = value end
+function M:GetAttribute(key) return self[key] end
+M.SetFrameRef = secure.SetFrameRef
+function M:SetColorTexture(r, g, b, a) self.paintAlpha = a or 1 end
+function M:CreateTexture(_, layer, _, level)
+    local region = CreateFrame("Texture", nil, self)
+    region.layer, region.level = layer, level or 0
+    return region
+end
 M.CreateFontString = M.CreateTexture
 for name in ("SetTexCoord RegisterForDrag SetBlendMode SetVertexColor "
-    .. "SetClampedToScreen SetFrameStrata SetColorTexture SetTextColor SetJustifyH SetWordWrap "
-    .. "SetHeight"):gmatch("%S+") do M[name] = function() end end
-function CreateFrame(_, name, parent)
-    local frame = setmetatable({scripts = {}, events = {}, points = {}, scale = 1, parent = parent, shown = true}, {__index = M})
+    .. "SetClampedToScreen SetFrameStrata SetTextColor SetJustifyH SetWordWrap EnableMouse"):gmatch("%S+") do
+    M[name] = function() end
+end
+function CreateFrame(_, name, parent, template)
+    local frame = setmetatable({name = name, template = template, scripts = {}, events = {}, points = {}, scale = 1,
+        parent = parent, shown = true}, {__index = M})
+    if template and template:find("Secure", 1, true) then
+        assert(not locked, "protected frame created in combat")
+        local ancestor = frame
+        while ancestor and ancestor ~= UIParent do
+            ancestor.protected = true
+            ancestor = ancestor.parent
+        end
+    end
     if name then _G[name] = frame end
     all[#all + 1] = frame
     return frame
 end
 function GetTime() return now end
-function IsShiftKeyDown() return false end
+function IsShiftKeyDown() return shift end
 function InCombatLockdown() return locked end
 C_Timer = {NewTicker = function(_, callback) tick = callback end}
 C_Container = {GetItemCooldown = function(id)
@@ -116,17 +141,43 @@ UIParent:SetSize(1000, 600)
 local tint = { 1, 1, 1 }
 A.theme = {colors = setmetatable({}, {__index = function() return tint end}), Font = function() end, OnChange = function() end}
 A.RefreshOptions = function() end
-A.InitBuffBindings = function() end
-A.RefreshBuffBindings = function() end
-A.GetBuffBinding = function(key) return bindings[key] end
 A.OpenCategory = function(key, id) opened[#opened + 1] = {key, id} end
+A.ToggleOptions = function() settings = settings + 1 end
+A.ToggleWheel = function() wheel = wheel + 1 end
 local function dispatch(event)
     for _, f in ipairs(all) do
         if f.events[event] then f.scripts.OnEvent(f, event) end
     end
 end
+function GetCurrentBindingSet() return 2 end
+function SaveBindings(set) assert(set == 2 and not locked) end
+function GetBindingKey(command)
+    local keys = {}
+    for chord, action in pairs(bindings) do
+        if action == command then keys[#keys + 1] = chord end
+    end
+    table.sort(keys)
+    return unpack(keys)
+end
+function GetBindingAction(chord, withOverrides)
+    return withOverrides and overrides[chord] or bindings[chord] or ""
+end
+function SetBinding(chord, command)
+    assert(not locked, "native binding changed during combat")
+    bindings[chord] = command
+    dispatch("UPDATE_BINDINGS")
+    return true
+end
+function ClearOverrideBindings()
+    assert(not locked, "binding overrides cleared during combat")
+    overrides = {}
+end
+function SetOverrideBindingClick(_, _, chord, target, button)
+    assert(not locked, "binding override changed during combat")
+    overrides[chord] = "CLICK " .. target .. ":" .. (button or "LeftButton")
+end
 for i = 1, 6 do
-    local cat = { key = "category" .. i, kind = "item", slot = i == 2 and 17 or nil }
+    local cat = { key = "category" .. i, label = "Buff " .. i, kind = "item", slot = i == 2 and 17 or nil }
     A.categories[i] = cat
     A.state.categories[cat.key] = { rows = {}, tracked = true, active = i == 1 and "Active" or nil }
 end
@@ -137,13 +188,21 @@ for _, key in ipairs({"campfire", "sleepingBag"}) do
 end
 assert(loadfile("AlwaysBuffed/Status.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Actions.lua"))("AlwaysBuffed", A)
+assert(loadfile("AlwaysBuffed/BuffBindings.lua"))("AlwaysBuffed", A)
 A.InitActions()
 local bar, grip = AlwaysBuffedBar, AlwaysBuffedBarFold
 local tray
 for _, f in ipairs(all) do
     if f.category then tray = f.parent end
 end
-local function toggle() grip.scripts.OnClick(grip, "LeftButton") end
+local function toggle() secure.press(grip, "LeftButton", false) end
+local function pressBinding(chord, down)
+    local name, button = GetBindingAction(chord, true):match("^CLICK ([^:]+):(.+)$")
+    assert(name and _G[name], "native binding must reach an initialized protected button")
+    shift = chord:find("SHIFT-", 1, true) ~= nil
+    secure.press(_G[name], button, down)
+    shift = false
+end
 local x, y = bar:GetCenter()
 local w, h = bar.w, bar.h
 local icon = grip.icon
@@ -157,12 +216,32 @@ assert(grip.missingGlow.shown and tonumber(grip.missingText.text) == 5)
 A.state.categories.category2.applicable = false
 A.RefreshActions()
 assert(tonumber(grip.missingText.text) == 4)
+assert(A.SetBarToggleBinding("SHIFT-F7"))
+local preparedAnchor = tray.anchor
 locked = true
 toggle()
-assert(A.db.collapsed and not tray.shown)
+assert(not A.db.collapsed and tray.shown, "a physical click must expand immediately during combat")
+assert(not grip.missingText.shown and not grip.missingGlow.shown)
+assert(tray.anchor == preparedAnchor and not AlwaysBuffedAction_category2:IsVisible())
+toggle()
+assert(A.db.collapsed and not tray.shown and grip.missingText.text == "4" and grip.activeText.text == "1")
+pressBinding("SHIFT-F7", true)
+assert(not A.db.collapsed and tray.shown and settings == 0, "Shift binding expands without opening settings")
+pressBinding("SHIFT-F7", false)
+assert(not A.db.collapsed and tray.shown, "key release does not toggle a second time")
+pressBinding("SHIFT-F7", true)
+assert(A.db.collapsed and not tray.shown and grip.missingGlow.shown)
+shift = true
+toggle()
+shift = false
+assert(A.db.collapsed and not tray.shown and settings == 1, "physical shift-click preserves the settings gesture")
+secure.press(grip, "RightButton", false)
+assert(A.db.collapsed and wheel == 1, "right-click keeps its own wheel gesture")
+pressBinding("SHIFT-F7", true)
+assert(not A.db.collapsed and tray.shown)
 locked = false
 dispatch("PLAYER_REGEN_ENABLED")
-assert(tray.shown and bar:GetCenter() == x and not grip.missingGlow.shown)
+assert(not A.db.collapsed and tray.shown and bar:GetCenter() == x and not grip.missingGlow.shown)
 -- Saved position is the grip center. A near-right-edge bar must unfold to the left.
 A.db.barAnchorX, A.db.barScale = 460, 1.25
 A.RefreshActions()
@@ -194,7 +273,8 @@ local function center(frame)
 end
 
 local function assertOutline(expanded)
-    assert(bar.outline, "both states share an exterior outline")
+    local outline = expanded and tray.outline or bar.outline
+    assert(outline and outline:IsVisible(), "the exterior frame is visible in both states")
     local x, y, w, h = rect(bar)
     local left, bottom, right, top = x, y, x + w, y + h
     if expanded then
@@ -202,14 +282,14 @@ local function assertOutline(expanded)
         left, bottom = math.min(left, tx), math.min(bottom, ty)
         right, top = math.max(right, tx + tw), math.max(top, ty + th)
     end
-    local ox, oy, ow, oh = rect(bar.outline)
+    local ox, oy, ow, oh = rect(outline)
     assert(near(ox, left) and near(oy, bottom) and near(ox + ow, right) and near(oy + oh, top),
         "painted exterior matches the visible handle and tray bounds")
     assert(ox >= -0.01 and oy >= -0.01 and ox + ow <= 1000.01 and oy + oh <= 600.01,
         "the exterior stays inside the viewport in the edge and wrap cases")
     local fill
     for _, child in ipairs(all) do
-        if #child.points == 2 and child.points[1][2] == bar.outline and child.points[2][2] == bar.outline then
+        if #child.points == 2 and child.points[1][2] == outline and child.points[2][2] == outline then
             fill = child
             break
         end
@@ -272,14 +352,22 @@ for _, scenario in ipairs({{"horizontal", -450, 0, 1}, {"horizontal", 450, 0, -1
         local cx, cy = center(bar)
         assert(near(cx, 500 + xOffset) and near(cy, 300 + yOffset))
         assert(near(gripX + gripW / 2, cx) and near(gripY + gripH / 2, cy))
-        assert(tray.shown and not grip.countBackdrop.shown)
+        assert(tray.shown and not grip.missingText.backing.shown and not grip.activeText.backing.shown)
         assertOutline(true)
         assertPitch(orientation, scale, direction, false)
         toggle()
-        assert(not tray.shown and grip.icon.shown and grip.countBackdrop.shown)
+        assert(not tray.shown and grip.icon.shown and grip.missingText.backing.shown and grip.activeText.backing.shown)
         assertOutline(false)
         local foldedX, foldedY, foldedW, foldedH = rect(grip.icon)
         assert(near(foldedX, gripX) and near(foldedY, gripY) and near(foldedW, gripW) and near(foldedH, gripH))
+        for _, region in ipairs(all) do
+            if region.parent == grip and region.shown and region.layer == "ARTWORK"
+                and region.level > grip.icon.level and (region.paintAlpha or 0) > 0.8 then
+                local x, y, w, h = rect(region)
+                assert(x + w <= cx or x >= cx or y + h <= gripY or y >= gripY + gripH,
+                    "collapsed counters must leave the artwork visible down the center")
+            end
+        end
         toggle()
     end
 end
@@ -359,11 +447,12 @@ camping.bag = nil
 A.RefreshActions()
 assert(camp.icon.desaturated and camp.icon.alpha < 0.8 and not camp["*item1"])
 -- A right-click inspects the current recommendation without touching the secure use action.
-local stock = {item = {id = 3664}, name = "Crocolisk Gumbo", count = 19}
-local newer = {item = {id = 20074}, name = "Heavy Crocolisk Stew", count = 0}
+local stock = {item = {id = 3664}, name = "Crocolisk Gumbo", count = 19, icon = 11}
+local newer = {item = {id = 20074}, name = "Heavy Crocolisk Stew", count = 0, icon = 12}
 local entry = A.state.categories.category1
 entry.bag, entry.upgrade = stock, newer
-bindings.category1, bindings.category2 = "CTRL-1", "F1"
+SetBinding("CTRL-1", "ALWAYSBUFFED_USE_CATEGORY1")
+SetBinding("F1", "ALWAYSBUFFED_USE_CATEGORY2")
 A.RefreshActions()
 assert(first.upgradeMark:IsShown() and first["*item1"] == "item:3664" and not first["*type2"])
 assert(first.clicks[2] == "RightButtonUp" and first.countText.text == "19")
@@ -379,11 +468,14 @@ A.RefreshActions()
 assert(not first.upgradeMark:IsShown())
 first.scripts.PostClick(first, "RightButton")
 assert(#opened == 2 and opened[2][2] == nil)
-bindings.category1 = nil
+SetBinding("CTRL-1")
 A.RefreshActions()
 assert(first.countText.anchor[1] == "BOTTOMLEFT", "the count stays in place when unbound")
 A.db.mouseoverOnly, A.db.collapsed = true, true
-A.ToggleBuffBar()
+A.RefreshActions()
+assert(not tray.shown and bar.alpha == 0)
+locked = true
+pressBinding("SHIFT-F7", true)
 assert(tray.shown and bar.alpha == 1)
 bar.scripts.OnUpdate()
 assert(bar.alpha == 1, "shortcut expansion is visible before the cursor reaches the bar")
@@ -392,4 +484,43 @@ bar.scripts.OnUpdate()
 tray.hovered = false
 bar.scripts.OnUpdate()
 assert(bar.alpha == 0)
-print("Buff bar passed: stable grip, both layouts, hover, active borders, aura precedence and timer expiry.")
+
+-- Combat toggles reuse the already prepared secure tray and do not apply a new loadout.
+local previousTrayAnchor, previousFirstAnchor = tray.anchor, first.anchor
+entry.bag = {item = {id = 20074}, count = 2, icon = 12}
+A.state.categories.category2.applicable = false
+A.db.barOrientation, A.db.barScale = "vertical", 1.25
+A.RefreshActions()
+assert(first["*item1"] == "item:3664" and first.icon.texture == 11 and second:IsVisible())
+assert(tray.anchor == previousTrayAnchor and first.anchor == previousFirstAnchor and bar:GetScale() == 0.95)
+pressBinding("SHIFT-F7", true)
+assert(A.db.collapsed and not tray.shown and grip.missingText.shown)
+assertOutline(false)
+pressBinding("SHIFT-F7", true)
+assert(not A.db.collapsed and tray.shown and not grip.missingText.shown and bar.alpha == 1)
+assert(first["*item1"] == "item:3664" and second:IsVisible() and tray.anchor == previousTrayAnchor)
+assertOutline(true)
+locked = false
+dispatch("PLAYER_REGEN_ENABLED")
+A.RefreshActions() -- Core refreshes the fully planned loadout after regen.
+assert(not A.db.collapsed and tray.shown and bar:GetScale() == 1.25)
+assert(first["*item1"] == "item:20074" and first.icon.texture == 12 and not second:IsVisible())
+assert(tray.anchor ~= previousTrayAnchor)
+
+-- Native shortcut stays available even when the HUD itself is hidden.
+A.db.showBar = false
+A.RefreshActions()
+assert(not bar:IsVisible())
+locked = true
+pressBinding("SHIFT-F7", false)
+assert(not bar:IsVisible())
+pressBinding("SHIFT-F7", true)
+assert(A.db.showBar and not A.db.collapsed and bar:IsVisible() and tray:IsVisible() and bar.alpha == 1)
+AlwaysBuffed_ToggleBar()
+assert(A.db.collapsed and tray:IsVisible(), "legacy scripted toggles defer protected changes in combat")
+locked = false
+A.RefreshActions()
+assert(not tray:IsVisible())
+AlwaysBuffed_ToggleBar()
+assert(not A.db.collapsed and tray:IsVisible(), "legacy scripted toggles apply immediately outside combat")
+print("Buff bar passed: secure combat clicks and key routing, deferred loadout, stable geometry, hover and aura timers.")

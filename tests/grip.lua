@@ -1,18 +1,21 @@
 -- Exercise the collapsed grip through the real Actions tick and refresh paths.
 local methods = {}
 local locked, now, tick, recolor = false, 1000
-function methods:SetSize(w, h) self.w, self.h = w, h end
-function methods:SetWidth(w) self.w = w end
+local secure = dofile("tests/secure-click.lua")
+local function geometry() assert(not locked, "grip layout rebuilt during combat") end
+function methods:SetSize(w, h) geometry() self.w, self.h = w, h end
+function methods:SetWidth(w) geometry() self.w = w end
 function methods:GetWidth() return self.w end
 function methods:GetHeight() return self.h end
-function methods:SetScale(scale) self.scale = scale end
+function methods:SetScale(scale) geometry() self.scale = scale end
 function methods:GetScale() return self.scale end
-function methods:SetPoint(...) self.anchor = {...} end
+function methods:SetPoint(...) geometry() self.anchor = {...} end
 function methods:GetCenter()
     return 500 / self.scale + (self.anchor and self.anchor[4] or 0),
         300 / self.scale + (self.anchor and self.anchor[5] or 0)
 end
 function methods:GetLeft() return self:GetCenter() - self.w / 2 end
+function methods:GetRight() return self:GetCenter() + self.w / 2 end
 function methods:GetTop() return select(2, self:GetCenter()) + self.h / 2 end
 function methods:SetScript(name, fn) self.scripts[name] = fn end
 function methods:SetText(value) self.text = value end
@@ -21,7 +24,7 @@ function methods:SetVertexColor(...) self.tint = {...} end
 function methods:SetTextColor(...) self.textColor = {...} end
 function methods:SetTexture(value) self.texture = value end
 function methods:SetShown(shown)
-    if locked then
+    if locked and not secure.running then
         assert(self.kind == "Texture" or self.kind == "FontString", "frame visibility was changed in combat")
     end
     self.shown = shown
@@ -30,23 +33,31 @@ function methods:Show() self:SetShown(true) end
 function methods:Hide() self:SetShown(false) end
 function methods:IsShown() return self.shown end
 function methods:IsVisible() return self.shown and (not self.parent or self.parent:IsVisible()) end
-function methods:SetAttribute() assert(not locked, "secure action was changed in combat") end
+function methods:SetAttribute(name, value)
+    assert(not locked or secure.running, "secure action was changed in combat")
+    self.attributes[name] = value
+end
+function methods:GetAttribute(name) return self.attributes[name] end
+methods.SetFrameRef = secure.SetFrameRef
+function methods:RegisterForClicks(...) self.clicks = {...} end
 function methods:CreateTexture() return CreateFrame("Texture", nil, self) end
 function methods:CreateFontString() return CreateFrame("FontString", nil, self) end
 
 for word in ([[
-    SetAllPoints SetAlpha SetTexCoord SetBlendMode RegisterForClicks RegisterForDrag
+    SetAllPoints SetAlpha SetTexCoord SetBlendMode RegisterForDrag EnableMouse
     RegisterEvent SetClampedToScreen SetFrameStrata SetColorTexture SetTextScale
     SetHeight ClearAllPoints SetDesaturated SetJustifyH
 ]]):gmatch("%S+") do methods[word] = function() end end
-function CreateFrame(kind, name, parent)
-    local frame = setmetatable({kind = kind, parent = parent, scale = 1, shown = true, scripts = {}}, {__index = methods})
+function CreateFrame(kind, name, parent, template)
+    local frame = setmetatable({kind = kind, parent = parent, template = template, scale = 1, shown = true,
+        scripts = {}, attributes = {}, protected = template and template:find("Secure", 1, true)}, {__index = methods})
     if name then _G[name] = frame end
     return frame
 end
 
 function GetTime() return now end
 function InCombatLockdown() return locked end
+function IsShiftKeyDown() return false end
 C_Timer = {NewTicker = function(_, callback) tick = callback end}
 GameTooltip = {
     SetOwner = function(self, owner) self.owner = owner end,
@@ -88,10 +99,8 @@ A.InitActions()
 local bar, grip = AlwaysBuffedBar, AlwaysBuffedBarFold
 local anchor = bar.anchor
 assert(bar.w == 48 and bar.h == 48 and grip.icon.shown)
-local countFace = grip.missingText.anchor[2]
-assert(countFace == grip.activeText.anchor[2] and countFace.w == 40 and countFace.h == 40)
-assert(countFace.anchor[1] == "CENTER" and grip.missingText.anchor[4] < grip.activeText.anchor[4])
-assert(grip.countBackdrop.shown and bar.outline.anchor[2] == bar)
+assert(grip.missingText.anchor[1] == "BOTTOMLEFT" and grip.activeText.anchor[1] == "BOTTOMRIGHT")
+assert(grip.missingText.backing.shown and grip.activeText.backing.shown and bar.outline.anchor[2] == bar)
 assert(grip.missingText.text == "2" and grip.activeText.text == "1")
 assert(grip.missingText.textColor[2] == colors.missing[2] and grip.activeText.textColor[2] == colors.mint[2])
 assert(grip.missingText.shown and grip.activeText.shown and grip.countDivider.shown)
@@ -111,6 +120,12 @@ tick()
 assert(grip.missingText.text == "3" and grip.activeText.text == "0")
 assert(GameTooltip.lines[2] == "3 missing" and GameTooltip.lines[3] == "0 active")
 assert(bar.anchor == anchor)
+secure.press(grip, "LeftButton", false)
+assert(not A.db.collapsed and AlwaysBuffedAction_weapon:IsVisible(), "the initially folded tray was prepared before combat")
+assert(not grip.missingText.shown and GameTooltip.lines[1] == "Click to collapse the buff bar.")
+secure.press(grip, "LeftButton", false)
+assert(A.db.collapsed and not AlwaysBuffedAction_weapon:IsVisible() and grip.missingText.text == "3")
+assert(GameTooltip.lines[1] == "Click to expand the buff bar." and GameTooltip.lines[2] == "3 missing")
 locked = false
 
 for _, state in pairs(A.state.categories) do state.tracked = false end
@@ -118,9 +133,11 @@ A.RefreshActions()
 assert(bar.shown and grip.missingText.shown and grip.activeText.shown)
 assert(grip.missingText.text == "0" and grip.activeText.text == "0" and not grip.missingGlow.shown)
 assert(grip.missingText.textColor[1] == colors.muted[1], "zero missing uses the quiet count color")
-A.ToggleBuffBar(false)
+locked = true
+secure.press(grip, "LeftButton", false)
+assert(not A.db.collapsed and not AlwaysBuffedAction_weapon:IsVisible(), "an empty tray stays hidden on expansion")
 assert(bar.shown and bar.anchor == anchor)
-assert(not grip.countBackdrop.shown)
+assert(not grip.missingText.backing.shown and not grip.activeText.backing.shown)
 assert(not grip.missingText.shown and not grip.activeText.shown and not grip.countDivider.shown)
 assert(GameTooltip.lines[2] ~= "0 missing")
-print("Collapsed grip size, ordered counts, tooltip, theme and combat expiry passed.")
+print("Collapsed grip size, counts, combat expiry and initially folded or empty secure tray passed.")

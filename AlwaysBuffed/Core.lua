@@ -115,7 +115,9 @@ function A.Update()
         local catalog = A.catalog[category.key]
         if category.kind == "food" then catalog = G.FoodWithBagFallback(catalog) end
         local previous = state.categories[category.key]
-        local plan = A.PlanCategory(category, catalog, ctx, A.Prefs(category.key), state.profile)
+        local prefs = A.Prefs(category.key)
+        local plan = A.PlanCategory(category, catalog, ctx, prefs, state.profile)
+        A.SeedTrackedOptions(prefs, plan)
         if previous then
             for _, field in ipairs(effectFields) do plan[field] = previous[field] end
         end

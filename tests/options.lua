@@ -339,6 +339,50 @@ equal(panel:IsShown(), true, "opening an upgrade shows closed options")
 foodPlan.upgrade = nil
 A.RefreshOptions()
 equal(visibleItem(panel, upgrade.name).upgradeMark:IsShown(), false, "stale upgrades lose the highlight on refresh")
+
+local previousLevel, previousProfile = A.state.level, A.state.profile
+A.state.level, A.state.profile = 20, A.SelectProfile(A.profiles.HUNTER, "survival", {})
+bagCounts[3664] = 6
+search:Type("")
+A.Update()
+click(assert(visibleItem(panel, "Crocolisk Gumbo")).action)
+equal(A.Prefs("food").pin, 3664, "tracking explicitly chooses the current food")
+equal(A.state.categories.food.upgrade, nil, "tracking acknowledges the available options")
+A.state.level = 25
+A.Update()
+local newUpgrade = assert(A.state.categories.food.upgrade)
+local survivalProfile = A.state.profile
+A.state.profile = previousProfile
+A.SetTrackedItem(A.Prefs("food"), 3664, A.state.categories.food)
+A.Update()
+equal(A.state.categories.food.upgrade, nil, "tracking at the current level acknowledges its options only for this spec")
+A.SetTrackedItem(A.Prefs("food"))
+A.state.profile = survivalProfile
+A.Update()
+equal(A.state.categories.food.upgrade.item.id, newUpgrade.item.id, "another spec cannot acknowledge this spec's upgrade")
+equal(A.Prefs("elixir").trackedOptions, nil, "tracking food has no effect on other categories")
+A.OpenCategory("food", newUpgrade.item.id)
+equal(visibleItem(panel, "Heavy Crocolisk Stew").upgradeMark:IsShown(), true, "right-click destination reveals the unlocked upgrade")
+equal(A.state.categories.food.upgrade.item.id, newUpgrade.item.id, "inspecting the upgrade does not dismiss it")
+equal(panel.keepTracked:IsShown(), true, "the category offers a single action to keep the current item")
+equal(panel.category.status[1].caption:GetText(), "Tracked item", "the pinned purchase is distinct from the suggested upgrade")
+click(panel.keepTracked)
+equal(A.Prefs("food").pin, 3664, "keeping the current item preserves its pin")
+equal(A.state.categories.food.bag.item.id, 3664, "keeping the current item preserves its action")
+equal(A.state.categories.food.upgrade, nil, "keeping the current item acknowledges the unlock")
+equal(panel.keepTracked:IsShown(), false, "the keep button hides when there is no pending upgrade")
+A.state.level = 35
+A.Update()
+local laterUpgrade = assert(A.state.categories.food.upgrade)
+equal(laterUpgrade.item.id, 13932, "a later stronger unlock brings the alert back")
+A.OpenCategory("food", laterUpgrade.item.id)
+click(assert(visibleItem(panel, laterUpgrade.name)).action)
+equal(A.Prefs("food").pin, laterUpgrade.item.id, "tracking a highlighted upgrade chooses that item")
+click(panel.category.clear)
+equal(A.Prefs("food").trackedOptions, nil, "use automatic discards the tracking history")
+A.state.level, A.state.profile, bagCounts[3664] = previousLevel, previousProfile, nil
+A.Update()
+
 click(nav.elixirRegen)
 equal(search:GetText(), "", "changing category clears search")
 equal(panel.category.showUnusable.checked, false, "the unusable-item filter is stored per category")

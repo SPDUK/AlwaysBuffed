@@ -1,3 +1,12 @@
+# AlwaysBuffed 1.0.3
+
+- Tracking an item keeps it assigned. The **+** returns when a newly available purchase would improve on both your tracked choice and what you carry. Right-click to inspect it. **Keep current item** dismisses the upgrades available now.
+- The checklist and its shortcut expand or fold the buff bar immediately in combat. Both use the actions prepared before combat.
+
+# AlwaysBuffed 1.0.2
+
+- A spell checklist now marks the buff bar, minimap button, and addon list. When the bar is folded, the missing and active counts sit in the lower corners so the checklist stays visible.
+
 # AlwaysBuffed 1.0.1
 
 - The download now includes the GNU General Public License, version 3 only, for the AlwaysBuffed code. This license also covers v1.0.0. The bundled Barlow fonts use the SIL Open Font License 1.1.
