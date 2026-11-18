@@ -1,3 +1,7 @@
+# AlwaysBuffed 1.0.4
+
+- Release packaging for CurseForge. Gameplay is unchanged from 1.0.3.
+
 # AlwaysBuffed 1.0.3
 
 - Tracking an item keeps it assigned. The **+** returns when a newly available purchase would improve on both your tracked choice and what you carry. Right-click to inspect it. **Keep current item** dismisses the upgrades available now.
