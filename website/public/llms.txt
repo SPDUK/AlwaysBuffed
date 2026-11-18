@@ -1,0 +1,15 @@
+# AlwaysBuffed
+
+> AlwaysBuffed is a free addon for World of Warcraft: Forever. It ranks food, elixirs, weapon buffs, and other consumables by character spec, shows bag counts and optional cached Auctionator prices, and tracks active buffs in a buff bar and radial wheel.
+
+## Install and use
+
+- [Latest release](https://github.com/SPDUK/AlwaysBuffed/releases/latest): Download the ZIP ending in `-forever.zip`. Extract the `AlwaysBuffed` folder into `World of Warcraft/_forever_/Interface/AddOns/`.
+- [Addon guide](https://github.com/SPDUK/AlwaysBuffed#readme): Enable AlwaysBuffed in the character selection screen’s AddOns menu. Type `/ab` or `/alwaysbuffed` in game. Auctionator is optional and supplies pricing after a full scan at the auction house.
+
+## Reference
+
+- [Spec rankings](https://github.com/SPDUK/AlwaysBuffed/blob/HEAD/docs/spec-rankings.md): How rankings differ across classes and talent builds.
+- [Consumable catalog](https://github.com/SPDUK/AlwaysBuffed/blob/HEAD/docs/catalog.md): Tracked categories, items, spells, and buff behavior.
+- [Changelog](https://github.com/SPDUK/AlwaysBuffed/blob/HEAD/CHANGELOG.md): Release notes and fixes.
+- [GitHub issues](https://github.com/SPDUK/AlwaysBuffed/issues): Bug reports and feature requests.

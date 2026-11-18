@@ -62,3 +62,9 @@ Run the Lua 5.1 checks from the repository root. They cover the catalog, all 28 
 ```powershell
 Get-ChildItem tests/*.lua | ForEach-Object { lua $_.FullName; if ($LASTEXITCODE) { throw "Failed $($_.Name)" } }
 ```
+
+## Website
+
+From `website/`, run `npm ci` and `npm run dev` to work on the homepage. `npm run build` renders the homepage to static HTML in `website/dist/`, which you can check locally with `npm run preview`.
+
+For a public build, set `SITE_URL` to the site's full homepage URL, including its path if hosted below the domain root. GitHub Actions publishes `website/dist/` to GitHub Pages when the site changes on `main`. The build uses the URL for the canonical link, social preview image, and sitemap.
