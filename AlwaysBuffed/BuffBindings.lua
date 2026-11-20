@@ -3,7 +3,11 @@ local L = A.L
 
 local PREFIX = "ALWAYSBUFFED_USE_"
 local BAR_TOGGLE = "ALWAYSBUFFED_TOGGLE_BAR"
-local RETIRED = "ALWAYSBUFFED_USE_BUFFDRINKS"
+local RETIRED = {
+    ALWAYSBUFFED_USE_BUFFDRINKS = true,
+    ALWAYSBUFFED_USE_HERBALISMDRAUGHT = true,
+    ALWAYSBUFFED_USE_MININGDRAUGHT = true,
+}
 local categories, proxies = {}, {}
 local installedTargets = {}
 local owner, updating, signature, retiredPending
@@ -38,17 +42,19 @@ local function isOurAction(action, binding, name)
 end
 
 function A.IsRetiredBuffBinding(action)
-    return action == RETIRED
+    return RETIRED[action] == true
 end
 
-local function removeRetiredBinding()
+local function removeRetiredBindings()
     if updating then return end
     retiredPending = InCombatLockdown()
     if retiredPending then return end
     local changed
     updating = true
-    for _, chord in ipairs({ GetBindingKey(RETIRED) }) do
-        if GetBindingAction(chord) == RETIRED and SetBinding(chord) then changed = true end
+    for binding in pairs(RETIRED) do
+        for _, chord in ipairs({ GetBindingKey(binding) }) do
+            if GetBindingAction(chord) == binding and SetBinding(chord) then changed = true end
+        end
     end
     if changed then SaveBindings(GetCurrentBindingSet()) end
     updating = false
@@ -58,7 +64,7 @@ local function refreshAction(button, category)
     local states = A.state and A.state.categories
     local plan = states and states[category.key]
     local row = plan and plan.tracked and plan.applicable ~= false
-        and (not category.profession or A.OnActiveBar(category)) and plan.bag
+        and (not A.CategoryBar(category) or A.OnActiveBar(category)) and plan.bag
     A.SetAction(button, category, row or nil)
 end
 
@@ -171,12 +177,12 @@ function A.InitBuffBindings()
     owner:RegisterEvent("PLAYER_REGEN_ENABLED")
     owner:SetScript("OnEvent", function(_, event)
         if event == "BINDINGS_LOADED" or (event == "PLAYER_REGEN_ENABLED" and retiredPending) then
-            removeRetiredBinding()
+            removeRetiredBindings()
         end
         updateOverrides()
         if event == "PLAYER_REGEN_ENABLED" then A.RefreshBuffBindings() end
     end)
-    removeRetiredBinding()
+    removeRetiredBindings()
     updateOverrides()
 end
 

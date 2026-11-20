@@ -1,6 +1,6 @@
 # Forever consumable catalog
 
-The catalog targets World of Warcraft: Forever build `1.60.1.70959`. It has 359 distinct item and spell IDs across 36 categories for levels 1–60. The 28 Combat categories cover 346 of those IDs across food, elixirs and flasks, scrolls, weapon enhancements and imbues, quest rewards, utility draughts, campfires, and the Cozy Sleeping Bag. Another eight categories cover Fishing, Herbalism, Mining, and Mage Comprehension. A few items, including fishing foods and Goldthorn Tea, appear in more than one loadout. The spec presets cover nine classes and all 27 talent groups, with a separate Feral Bear preset. [Profession buff evidence](profession-buffs.md)
+The catalog targets World of Warcraft: Forever build `1.60.1.70959`. It has 358 distinct item and spell IDs across 34 categories for levels 1–60. The default Combat bar covers food, elixirs and flasks, scrolls, weapon enhancements and imbues, quest rewards, utility draughts, campfires, the Cozy Sleeping Bag, and Herbalism Tea. Four Fishing categories and one Mage Comprehension category have dedicated bars. The spec presets cover nine classes and all 27 talent groups, with a separate Feral Bear preset. [Profession buff evidence](profession-buffs.md)
 
 ## How buffs are grouped
 
@@ -15,7 +15,7 @@ The catalog targets World of Warcraft: Forever build `1.60.1.70959`. It has 359 
 | Quest rewards and situational buffs | Blasted Lands draughts share a one-hour cooldown. Winterspring Juju Power and Guile and Un'Goro Crystal Force and Ward appear alongside related stat items. Crystal Spire, resistance draughts, Gift of Arthas, water mobility and detection are optional categories. |
 | Camp and rest | Three campfire kits require Cooking 1, 90 or 220. Camp Benefits and Well-Rested each have their own reminder. |
 | Fishing | Pole lures, Well Fed fishing skill, the Shiny Silver Coin, and catch-quality effects from a Fishing Rack or Hut have their own selectors on the Fishing bar. |
-| Gathering and research | Herbalism tracks Goldthorn Tea and Revealing Draught. Mining tracks the same draught. Mages can switch to Comprehension to track Scroll of Comprehension. |
+| Gathering and research | Herbalism Tea tracks Goldthorn Tea on the default Combat bar. Mages can switch to Comprehension to track Scroll of Comprehension. |
 
 [Blizzard's Forever Deep Dive](https://worldofwarcraft.blizzard.com/en-us/news/24303313), [Rogue and Warlock class notes](https://worldofwarcraft.blizzard.com/en-us/news/24310968), [Mage and Shaman class notes](https://worldofwarcraft.blizzard.com/en-us/news/24302097), [November 16 hotfixes](https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-16-2026), [Camping guide](https://news.blizzard.com/en-us/article/24301516/gather-around-the-campfire-in-world-of-warcraft-forever)
 

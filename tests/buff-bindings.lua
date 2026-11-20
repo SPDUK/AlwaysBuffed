@@ -18,6 +18,8 @@ carry("sleepingBag", 211527)
 local function command(key) return "ALWAYSBUFFED_USE_" .. key:upper() end
 local BAR = "ALWAYSBUFFED_TOGGLE_BAR"
 local RETIRED = command("buffDrinks")
+local RETIRED_HERBS = command("herbalismDraught")
+local RETIRED_MINING = command("miningDraught")
 local file = assert(io.open("AlwaysBuffed/Bindings.xml"))
 local xml = file:read("*a")
 file:close()
@@ -28,15 +30,17 @@ assert(xml:find('name="ALWAYSBUFFED_TOGGLE_WHEEL"', 1, true))
 assert(xml:match('<Binding name="' .. BAR .. '"[^>]*/>'), "native bar shortcut is registered for secure CLICK routing")
 local _, total = xml:gsub('<Binding name=', '')
 assert(total == #A.categories + 2, "class and profession categories, wheel and bar bindings are registered")
-assert(not xml:find(RETIRED, 1, true), "retired Buff Drinks command is absent from native settings")
+for _, binding in ipairs({RETIRED, RETIRED_HERBS, RETIRED_MINING}) do
+    assert(not xml:find(binding, 1, true), binding .. " is absent from native settings")
+end
 local activeSet, savedSet = 2
 local sets = {
-    [1] = { H = "JUMP", K = RETIRED },
+    [1] = { H = "JUMP", K = RETIRED, N = RETIRED_MINING },
     [2] = {
         J = "JUMP", ["CTRL-R"] = "ALWAYSBUFFED_TOGGLE_WHEEL",
         F = command("food"), O = command("imbueOffhand"),
         ["SHIFT-O"] = command("imbueOffhand"),
-        K = RETIRED, ["SHIFT-K"] = RETIRED,
+        K = RETIRED, ["SHIFT-K"] = RETIRED, U = RETIRED_HERBS, ["SHIFT-U"] = RETIRED_HERBS, N = RETIRED_MINING,
     },
 }
 local frames, overrides, external = {}, {}, {}
@@ -75,7 +79,7 @@ UIParent = CreateFrame("Frame")
 function InCombatLockdown() return inCombat end
 function GetCurrentBindingSet() return activeSet end
 function GetBindingKey(binding)
-    if hideRetired and binding == RETIRED then return end
+    if hideRetired == binding then return end
     local keys = {}
     for chord, action in pairs(sets[activeSet]) do
         if action == binding then keys[#keys + 1] = chord end
@@ -119,29 +123,33 @@ local function press(chord, down)
     end
 end
 
-external["SHIFT-K"] = "CLICK DifferentAddOn:LeftButton"
+external["SHIFT-U"] = "CLICK DifferentAddOn:LeftButton"
 A.InitBuffBindings()
 assert(saveWrites == 1 and savedSet == 2 and not sets[2].K and not sets[2]["SHIFT-K"])
-assert(GetBindingAction("SHIFT-K", true) == external["SHIFT-K"] and sets[1].K == RETIRED)
-assert(not A.GetBuffBinding("buffDrinks") and not A.SetBuffBinding("buffDrinks", "K"))
-assert(not _G["BINDING_NAME_" .. RETIRED] and not AlwaysBuffedHotkey_buffDrinks)
+assert(not sets[2].N and not sets[2].U and not sets[2]["SHIFT-U"], "retired hidden-node shortcuts are cleared")
+assert(GetBindingAction("SHIFT-U", true) == external["SHIFT-U"] and sets[1].K == RETIRED and sets[1].N == RETIRED_MINING)
+for _, key in ipairs({"buffDrinks", "herbalismDraught", "miningDraught"}) do
+    assert(not A.GetBuffBinding(key) and not A.SetBuffBinding(key, "K"))
+    assert(not _G["BINDING_NAME_" .. command(key)] and not _G["AlwaysBuffedHotkey_" .. key])
+end
 fire("BINDINGS_LOADED")
 assert(saveWrites == 1, "loading an already clean set does not save")
 inCombat, activeSet = true, 1
 fire("BINDINGS_LOADED")
-assert(sets[1].K == RETIRED and saveWrites == 1, "loaded bindings are left alone during combat")
+assert(sets[1].K == RETIRED and sets[1].N == RETIRED_MINING and saveWrites == 1,
+    "loaded bindings are left alone during combat")
 inCombat = false
 fire("PLAYER_REGEN_ENABLED")
-assert(not sets[1].K and sets[1].H == "JUMP" and saveWrites == 2 and savedSet == 1)
+assert(not sets[1].K and not sets[1].N and sets[1].H == "JUMP" and saveWrites == 2 and savedSet == 1)
 activeSet = 2
 fire("BINDINGS_LOADED")
 assert(saveWrites == 2)
-hideRetired, sets[2].K = true, RETIRED
-external.K = "CLICK DifferentAddOn:LeftButton"
-assert(not A.SetBarToggleBinding("K") and sets[2].K == RETIRED, "a foreign override still blocks reuse")
-external.K = nil
-assert(A.SetBarToggleBinding("K") and sets[2].K == BAR, "retired key remains reusable if reverse lookup misses it")
-assert(A.SetBarToggleBinding(nil) and not sets[2].K)
+hideRetired, sets[2].N = RETIRED_MINING, RETIRED_MINING
+external.N = "CLICK DifferentAddOn:LeftButton"
+assert(not A.SetBarToggleBinding("N") and sets[2].N == RETIRED_MINING, "a foreign override still blocks reuse")
+external.N = nil
+assert(A.SetBarToggleBinding("N") and sets[2].N == BAR, "retired key remains reusable if reverse lookup misses it")
+assert(A.SetBarToggleBinding(nil) and not sets[2].N)
 assert(BINDING_NAME_ALWAYSBUFFED_TOGGLE_BAR == "Toggle buff bar")
 assert(A.GetBarToggleBinding() == nil, "bar toggle is unbound by default")
 assert(BINDING_NAME_ALWAYSBUFFED_USE_IMBUEOFFHAND == "Use Off-Hand Poison")

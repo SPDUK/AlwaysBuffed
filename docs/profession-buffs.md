@@ -4,6 +4,8 @@ Type `/alwaysbuffed` or `/ab` in chat, select **Professions** in the sidebar, an
 
 ## Fishing
 
+Each Fishing category lists its items under **Utility** for every spec. Lures are ranked by Fishing bonus. A usable lure you explicitly track takes priority.
+
 **Automatic** switches to the Fishing bar when you equip a fishing pole in your main hand. For other fishing gear, use `/alwaysbuffed fishgear <item link or ID>` or `/ab fishgear <item link or ID>` to register one extra item for your character. Equipping it in any slot selects Fishing. Use `fishgear clear` with either command to remove the extra trigger. Applying a lure still requires a pole in your main hand.
 
 These records use the Forever client data for build `1.60.1.70959`. The fishing pole is weapon class `2`, subclass `20`, equipped in the main hand. Lure spells require subclass mask `1048576` and apply a temporary enchant through spell effect `54`. The table lists the item requirement separately from the skill gained after the lure is applied. [ItemSparse](https://wago.tools/db2/ItemSparse?build=1.60.1.70959), [SpellEquippedItems](https://wago.tools/db2/SpellEquippedItems?build=1.60.1.70959), [SpellEffect](https://wago.tools/db2/SpellEffect?build=1.60.1.70959), [SpellItemEnchantment](https://wago.tools/db2/SpellItemEnchantment?build=1.60.1.70959)
@@ -43,15 +45,13 @@ A Fishing Rack or Hut requires a nearby campfire. Their Fishing bonuses are catc
 
 The Lucky Fishing Hat, Arcanite Fishing Pole, and Eternium Fishing Line provide passive equipment bonuses. The Fishing rank spells `7620`, `7731`, `7732`, and `18248` all require the fishing-pole subclass. The druid's Idol of Shifting Tides, item `263411`, is a ranged-slot relic whose equipped effect `1270470` reduces shapeshifting mana cost. The reviewed client item and spell records do not establish a separate Bear Form fishing item or a pole-free Fishing spell. [SpellEquippedItems](https://wago.tools/db2/SpellEquippedItems?build=1.60.1.70959), [Idol of Shifting Tides client record](https://forever-xp.com/items/263411/)
 
-## Herbalism and Mining
+## Herbalism
 
-| Loadout and category | Item | Effect |
-| --- | --- | --- |
-| Herbalism · Herbalism Tea | Goldthorn Tea `10841` | Level 25. Drink for 10 seconds to gain +15 Herbalism for 15 minutes through Well Fed `1249907`. It also provides the usual 5% kill XP below the level cap. |
-| Herbalism · Hidden Herbs | Revealing Draught `250326` | Reveals hidden Herbalism and Mining nodes for 30 minutes. |
-| Mining · Hidden Mining Nodes | Revealing Draught `250326` | Uses the same item and aura as Hidden Herbs. |
+Version 1.1.1 removed the hidden-herb and hidden-mining reminders. Characters upgrading with the old Herbalism or Mining bar selected return to **Automatic**.
 
-Goldthorn Tea also appears in Combat Food and uses the same Well Fed slot. Revealing Draught uses aura `1250887`, which persists through death. The client links Alchemy recipe `1250775` and recipe item `250362` to the draught, but live acquisition remains unverified. Both Goldthorn Tea and Revealing Draught are carried-only recommendations. [ItemEffect](https://wago.tools/db2/ItemEffect?build=1.60.1.70959), [SpellEffect](https://wago.tools/db2/SpellEffect?build=1.60.1.70959), [Revealing Draught recipe record](https://www.wowhead.com/forever/spell=1250775/revealing-draught)
+Select **Professions → Herbalism Tea** to show or hide the reminder on your default Combat bar. It starts enabled for trained herbalists. An explicit checkbox choice takes priority and works with Find Herbs on or off. In Automatic mode, putting your fishing pole away brings the default bar back.
+
+From level 25, carry Goldthorn Tea (`10841`) to use it from the bar. Drink for 10 seconds to gain +15 Herbalism for 15 minutes. The addon tracks the tea’s Well Fed aura (`1249907`), including when the last tea has been used. [ItemEffect](https://wago.tools/db2/ItemEffect?build=1.60.1.70959), [SpellEffect](https://wago.tools/db2/SpellEffect?build=1.60.1.70959)
 
 ## Mage Comprehension
 
@@ -59,4 +59,4 @@ Goldthorn Tea also appears in Combat Food and uses the same Well Fed slot. Revea
 
 ## Other professions
 
-The review looked for replenishable, timed player buffs in the build’s skill bonuses, item uses, and profession spell descriptions. Beyond the four loadouts above, no additional profession-specific timer was verified. Permanent tool and enchant bonuses stay active while equipped. Deft Digits, a crafting-speed effect, has no expiry in the client data. [Client spell effects](https://wago.tools/db2/SpellEffect?build=1.60.1.70959), [Client spell durations](https://wago.tools/db2/SpellDuration?build=1.60.1.70959)
+The catalog includes timed buffs for Fishing, Herbalism, and Mage Comprehension. Permanent tool and enchant bonuses stay active while equipped. Deft Digits, a crafting-speed effect, has no expiry in the client data. [Client spell effects](https://wago.tools/db2/SpellEffect?build=1.60.1.70959), [Client spell durations](https://wago.tools/db2/SpellDuration?build=1.60.1.70959)

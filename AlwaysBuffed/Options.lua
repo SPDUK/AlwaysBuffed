@@ -318,7 +318,8 @@ local function tracked(category)
     if pref ~= nil then
         return pref
     end
-    return A.DefaultTracked(category, A.state.profile)
+    local plan = A.state.categories[category.key]
+    return plan and plan.enabled == true
 end
 
 local function toggleTrack(category)
@@ -951,7 +952,6 @@ local function buildCategory(frame)
         A.SetTrackedItem(A.Prefs(activePage))
         A.Update()
     end)
-    page.clear.hint = L["Return to the profile’s ranking and price preferences."]
     page.rankTitle = label(page, 18, color.text, "LEFT", true)
     page.rankTitle:SetText(L["Item rankings"])
     buildSearch(frame, page)
@@ -980,7 +980,9 @@ local function buildProfessions(frame)
 
     local choices = { { key = "auto", label = A.BarModeLabel("auto") }, { key = "combat", label = A.BarModeLabel("combat") } }
     for _, profession in ipairs(frame.professionChoices) do
-        choices[#choices + 1] = profession
+        if profession.bar ~= "combat" then
+            choices[#choices + 1] = profession
+        end
     end
     local rows = math.ceil(#choices / 5)
     local columns = math.ceil(#choices / rows)
@@ -1004,6 +1006,12 @@ local function buildProfessions(frame)
     for _, profession in ipairs(frame.professionChoices) do
         sectionTitle(page, y, profession.label)
         y = y + 30
+        if profession.bar == "combat" then
+            local detail = label(page, 14, color.muted)
+            detail:SetPoint("TOPLEFT", 0, -y + 3)
+            detail:SetText(L["Shown on the %s bar."]:format(A.BarModeLabel(profession.bar)))
+            y = y + 25
+        end
         local index = 0
         for _, category in ipairs(A.categories) do
             if category.profession == profession.key and frame.categoryByKey[category.key] then
@@ -1586,7 +1594,7 @@ local function renderRankedItems(frame, category, rows, pref, y, hasMarket)
         local key = group[1]
         local header, bucket = page.groupHeaders[key], buckets[key]
         local expanded = not collapsed[key]
-        header:SetShown(not searching or #bucket > 0)
+        header:SetShown((not category.profession or key == "utility") and (not searching or #bucket > 0))
         if header:IsShown() then
             header:ClearAllPoints()
             header:SetPoint("TOPLEFT", 0, -y)
@@ -1625,6 +1633,7 @@ local function renderCategory(frame, category)
     frame.heading:SetText(category.label)
     local reminder = category.kind == "reminder"
     local enabled = tracked(category)
+    local professionBar = category.profession and A.CategoryBar(category)
     local onActiveBar = not category.profession or A.OnActiveBar(category)
     local status = reminder and "" or activeText(state)
     if reminder and not A.db.reminders then
@@ -1632,7 +1641,7 @@ local function renderCategory(frame, category)
     elseif not enabled then
         status = reminder and L["Reminder off for this profile"] or L["Category off for this profile"]
     elseif not onActiveBar then
-        status = L["Shown on the %s bar."]:format(A.BarModeLabel(category.profession))
+        status = L["Shown on the %s bar."]:format(A.BarModeLabel(professionBar))
     elseif category.slot and #state.rows > 0 and state.applicable == false then
         if category.profession == "fishing" then
             status = L["Requires a fishing pole"]
@@ -1643,7 +1652,7 @@ local function renderCategory(frame, category)
     frame.subheading:SetText(status)
     tintLabel(frame.subheading, enabled and onActiveBar and state.active and color.mint or color.muted)
     page.track.title:SetText(reminder and L["Enable reminder"] or L["Enable category"])
-    if category.profession then
+    if professionBar then
         page.track.hint = L["Show this category when its profession bar is active."]
     else
         page.track.hint = not A.db.reminders and reminder and L["Turn on reminders and enable this reminder for this profile."]
@@ -1654,7 +1663,7 @@ local function renderCategory(frame, category)
     local shortcutStatus
     if not enabled then
         shortcutStatus = reminder and L["Enable this reminder to use its shortcut."] or L["Enable this category to use its shortcut."]
-    elseif category.profession then
+    elseif professionBar then
         shortcutStatus = L["Use this category’s selected item or spell while its profession bar is active."]
     else
         shortcutStatus = L["Use this category’s selected item or spell, even when the bar is hidden."]
@@ -1673,6 +1682,8 @@ local function renderCategory(frame, category)
     local hasMarket = hasMarketItems(state)
     page.cheap:SetShown(hasMarket)
     page.clear:SetShown(count > 0)
+    page.clear.hint = category.profession and L["Use automatic selection for this category."]
+        or L["Return to the profile’s ranking and price preferences."]
     check(page.cheap, pref.cheapest)
     check(page.showUnusable, pref.showUnusable == true)
     page.clear:SetEnabled(pref.pin ~= nil)

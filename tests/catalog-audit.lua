@@ -5,22 +5,25 @@ for _, name in ipairs({"Locale", "Catalog", "Categories", "Profiles", "Planner",
 end
 
 local categories, wheelSizes = {}, {}
-local retiredDrinks = {[17048] = true, [20709] = true, [21114] = true, [21151] = true, [287972] = true,
-    [18269] = true, [18284] = true}
+local retiredItems = {[17048] = true, [20709] = true, [21114] = true, [21151] = true, [287972] = true,
+    [18269] = true, [18284] = true, [250326] = true}
 for _, category in ipairs(A.categories) do
     assert(not categories[category.key], "duplicate category " .. category.key)
     assert(A.catalog[category.key] and #A.catalog[category.key] > 0)
     categories[category.key] = category
-    local bar = category.profession or "combat"
+    local bar = A.CategoryBar(category) or "combat"
     wheelSizes[bar] = (wheelSizes[bar] or 0) + 1
     for _, item in ipairs(A.catalog[category.key]) do
-        assert(not retiredDrinks[item.id], "the retired drink must not appear in any category")
+        assert(not retiredItems[item.id], "retired item " .. item.id .. " appears in " .. category.key)
     end
 end
 for bar, count in pairs(wheelSizes) do
     assert(count <= 35, bar .. " wheel exceeds the available atlas masks")
 end
 assert(not categories.buffDrinks and not A.catalog.buffDrinks, "Buff Drinks is absent")
+for _, key in ipairs({"herbalismDraught", "miningDraught"}) do
+    assert(not categories[key] and not A.catalog[key], key .. " is retired")
+end
 
 local activeGear = {[16] = 700001, [17] = 700002}
 local gearTypes = {[700001] = {2, 10}, [700002] = {4, 6}, [700003] = {2, 15}, [700004] = {2, 7}}

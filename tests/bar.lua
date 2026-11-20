@@ -188,6 +188,7 @@ for _, key in ipairs({"campfire", "sleepingBag"}) do
 end
 A.categories[#A.categories + 1] = {key = "fishingLure", label = "Fishing Lure", kind = "weapon", slot = 16, profession = "fishing"}
 A.categories[#A.categories + 1] = {key = "fishingFood", label = "Fishing Food", kind = "food", profession = "fishing"}
+A.categories[#A.categories + 1] = {key = "herbalismTea", label = "Herbalism Tea", kind = "item", profession = "herbalism"}
 assert(loadfile("AlwaysBuffed/Locale.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Categories.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Status.lua"))("AlwaysBuffed", A)
@@ -547,7 +548,10 @@ local lure, fishingFood = AlwaysBuffedAction_fishingLure, AlwaysBuffedAction_fis
 local gripAnchor, liveScale = bar.anchor, bar:GetScale()
 A.state.categories.fishingLure = {tracked = true, bag = {item = {id = 6532}, count = 1, icon = 28}}
 A.state.categories.fishingFood = {tracked = true, bag = {item = {id = 33867}, count = 1, icon = 29}}
+A.state.categories.herbalismTea = {tracked = true, rows = {}, bag = {item = {id = 10841}, count = 1, icon = 30}}
+local tea = AlwaysBuffedAction_herbalismTea
 A.RefreshActions()
+assert(first:IsVisible() and tea:IsVisible() and tea["*item1"] == "item:10841", "Combat includes enabled Herbalism Tea")
 assert(not lure:IsVisible() and not lure["*item1"], "combat loadout excludes and disarms the lure")
 A.db.collapsed = true
 A.state.barProfession = "fishing"
@@ -558,6 +562,7 @@ assert(not first:IsVisible() and not first["*item1"], "switching disarms the pre
 locked = true
 toggle()
 assert(lure:IsVisible() and fishingFood:IsVisible() and not first:IsVisible())
+assert(not tea:IsVisible() and not tea["*item1"], "the Fishing bar hides the Combat tea action")
 assert(lure["*item1"] == "item:6532" and lure["*target-slot1"] == 16, "the secure toggle opens the prepared fishing loadout")
 toggle()
 assert(grip.missingText.text == "2" and not lure:IsVisible())
@@ -566,8 +571,9 @@ A.state.barProfession = nil
 A.RefreshActions()
 toggle()
 assert(first:IsVisible() and first["*item1"] == "item:20074" and not lure:IsVisible() and not lure["*item1"])
+assert(tea:IsVisible() and tea["*item1"] == "item:10841", "switching back to Combat restores Tea")
 assert(bar.anchor == gripAnchor and bar:GetScale() == liveScale and A.db.barDirection == "up")
-A.state.barProfession = "herbalism"
+A.state.barProfession = "comprehension"
 A.RefreshActions()
 assert(bar:IsVisible() and not tray:IsShown() and not first:IsShown() and not first["*item1"],
     "an empty profession keeps the grip and clears the previous actions")

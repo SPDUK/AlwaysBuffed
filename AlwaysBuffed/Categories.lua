@@ -3,8 +3,7 @@ local L = A.L
 
 A.professions = {
     {key = "fishing", label = L["Fishing"]},
-    {key = "herbalism", label = L["Herbalism"]},
-    {key = "mining", label = L["Mining"]},
+    {key = "herbalism", label = L["Herbalism"], bar = "combat"},
     {key = "comprehension", label = L["Comprehension"], class = "MAGE"},
 }
 
@@ -16,8 +15,17 @@ function A.BarModeLabel(mode)
     return L["Combat"]
 end
 
+local professionBars = {}
+for _, profession in ipairs(A.professions) do
+    if profession.bar ~= "combat" then professionBars[profession.key] = profession.key end
+end
+
+function A.CategoryBar(category)
+    return professionBars[category.profession]
+end
+
 function A.OnActiveBar(category)
-    return category.profession == A.state.barProfession
+    return A.CategoryBar(category) == A.state.barProfession
 end
 
 local generic = { L["Main-Hand Weapon Imbue"], L["Off-Hand Weapon Imbue"], L["Main-Hand Imbue"], L["Off-Hand Imbue"] }

@@ -102,7 +102,8 @@ local effectFields = {"active", "expires", "activeIcon", "activeSpellID", "activ
 local function validBarMode(mode, class)
     if mode == "auto" or mode == "combat" then return true end
     for _, profession in ipairs(A.professions) do
-        if profession.key == mode and (not profession.class or profession.class == class) then return true end
+        if profession.key == mode and profession.bar ~= "combat"
+            and (not profession.class or profession.class == class) then return true end
     end
     return false
 end
@@ -224,7 +225,11 @@ end
 local function migratePreferences(preferences)
     for _, oldProfile in pairs(preferences) do
         local profileValid = type(oldProfile) == "table"
-        if profileValid then oldProfile.buffDrinks = nil end
+        if profileValid then
+            oldProfile.buffDrinks = nil
+            oldProfile.herbalismDraught = nil
+            oldProfile.miningDraught = nil
+        end
         local old = profileValid and oldProfile.elixir
         if type(old) == "table" and (old.pin == 12820 or old.pin == 246948) then
             local ap = oldProfile.elixirAttackPower

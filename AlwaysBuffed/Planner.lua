@@ -3,7 +3,11 @@ local L = A.L
 
 local COOKING = 185
 
-function A.DefaultTracked(category, profile)
+local function defaultTracked(category, profile, ctx)
+    if category.key == "herbalismTea" then
+        -- Forever exposes both the parent Herbalism skill and its expansion skill.
+        return ctx.skill(182) > 0 or ctx.skill(2944) > 0
+    end
     return category.profession ~= nil or profile.tracked[category.key] == true
 end
 
@@ -112,7 +116,7 @@ local function rankEffect(item, category, profile, level)
     if category.key == "campfire" then return "utility", item.capacity or 0 end
     local stats = item.stats or {}
     if category.profession then
-        return "best", stats[category.profession] or stats.catchQuality or 1
+        return "utility", stats[category.profession] or stats.catchQuality or 1
     end
     local direct, situational, hasOtherStat = 0, 0, false
     for stat, amount in pairs(stats) do
@@ -242,7 +246,7 @@ end
 
 function A.PlanCategory(category, catalog, ctx, prefs, profile)
     local tracked = prefs.enabled
-    if tracked == nil then tracked = A.DefaultTracked(category, profile) end
+    if tracked == nil then tracked = defaultTracked(category, profile, ctx) end
     local weapon = category.slot and ctx.weapons[category.slot]
     local weaponSubclass = category.slot and ctx.weaponSubclasses and ctx.weaponSubclasses[category.slot]
     local lure = category.profession == "fishing" and category.slot ~= nil
@@ -250,7 +254,7 @@ function A.PlanCategory(category, catalog, ctx, prefs, profile)
         or category.slot == 17 and L["Requires a compatible off-hand weapon"]
         or L["Requires a compatible main-hand weapon"]
     local applicable = not category.slot or (weapon ~= nil and (weapon == "fishingPole") == lure)
-    local result = {rows = {}, applicable = applicable}
+    local result = {rows = {}, enabled = tracked, applicable = applicable}
     local pinnedBuy, pinnedBag, cheapest
     for _, item in ipairs(catalog) do
         if not item.class or item.class == ctx.class then

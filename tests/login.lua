@@ -41,10 +41,12 @@ local event = assert(frames[#frames].OnEvent)
 -- The Lua model and client adapter are exercised here. Widget behavior has separate suites.
 A.InitActions, A.InitWheel, A.RefreshActions, A.RefreshOptions, A.RefreshWheel = noop, noop, noop, noop, noop
 local preferences = {
-    combat = {elixir={pin=12820, cheapest=true}, imbueOffhand={pin=2892}, buffDrinks={enabled=true, pin=21151}},
-    subtlety = {elixir={pin=246948, enabled=false}, elixirAttackPower={pin=12460}, buffDrinks={enabled=false}},
+    combat = {elixir={pin=12820, cheapest=true}, imbueOffhand={pin=2892}, buffDrinks={enabled=true, pin=21151},
+        herbalismDraught={pin=250326}, miningDraught={enabled=false}, herbalismTea={pin=10841}},
+    subtlety = {elixir={pin=246948, enabled=false}, elixirAttackPower={pin=12460}, buffDrinks={enabled=false},
+        miningDraught={pin=250326}, herbalismDraught={enabled=false}},
 }
-AlwaysBuffedDB = {preferences=preferences, profile="combat"}
+AlwaysBuffedDB = {preferences=preferences, profile="combat", barMode="mining"}
 event(nil, "PLAYER_LOGIN")
 local function chat(input)
     local alias, args = input:match("^(%S+)%s*(.*)$")
@@ -79,6 +81,11 @@ assert(A.db.preferences.subtlety.elixirAttackPower.pin == 12460)
 assert(A.db.preferences.combat.imbueOffhand.pin == 2892)
 assert(not A.db.preferences.combat.buffDrinks and not A.db.preferences.subtlety.buffDrinks)
 assert(not A.state.categories.buffDrinks)
+assert(A.db.barMode == "auto" and not A.state.barProfession, "a saved Mining mode falls back to Automatic")
+assert(A.db.preferences.combat.herbalismTea.pin == 10841)
+for _, key in ipairs({"herbalismDraught", "miningDraught"}) do
+    assert(not A.db.preferences.combat[key] and not A.db.preferences.subtlety[key] and not A.state.categories[key])
+end
 for _, category in ipairs(A.categories) do
     assert(A.state.categories[category.key], category.key)
     if category.key == "imbueOffhand" then assert(category.label == "Off-Hand Poison") end
@@ -257,16 +264,14 @@ locked = false
 process("PLAYER_REGEN_ENABLED")
 assert(A.state.barProfession == "fishing" and refreshes > beforeCombat, "leaving combat applies the deferred equipment change")
 locked, beforeCombat = true, refreshes
-A.SetBarMode("herbalism")
-assert(A.db.barMode == "herbalism" and A.state.barProfession == "fishing" and refreshes == beforeCombat,
+A.SetBarMode("combat")
+assert(A.db.barMode == "combat" and A.state.barProfession == "fishing" and refreshes == beforeCombat,
     "manual mode is saved while the effective bar stays fixed in combat")
 locked = false
 process("PLAYER_REGEN_ENABLED")
-assert(A.state.barProfession == "herbalism" and refreshes > beforeCombat, "leaving combat activates the saved manual mode")
+assert(not A.state.barProfession and refreshes > beforeCombat, "leaving combat activates the saved Combat mode over the pole")
 A.SetBarMode("mining")
-assert(A.state.barProfession == "mining", "Mining can be selected without changing equipment")
-A.SetBarMode("combat")
-assert(not A.state.barProfession, "manual Combat overrides a pole")
+assert(A.db.barMode == "combat" and not A.state.barProfession, "retired Mining mode cannot be selected")
 
 gear[16] = dagger
 A.SetBarMode("auto")
@@ -311,18 +316,14 @@ print("Profession login, equipment switches, combat deferral, lure ranks and coo
 -- Owned sources and existing auras are independent. An empty inventory still
 -- reports a known gathering buff, including one received from a shared camp.
 level, carried = 40, {[10841] = 1}
-A.SetBarMode("herbalism")
+A.SetBarMode("combat")
 assert(plan("herbalismTea").bag.item.id == 10841 and not plan("herbalismTea").buy)
-assert(not plan("herbalismDraught").buy and not plan("miningDraught").buy)
 auras = {
-    {spellId = 1250887, name = "Revealing Draught", duration = 1800, expirationTime = now + 1600},
     {spellId = 1249907, name = "Well Fed", duration = 900, expirationTime = now + 850},
     {spellId = 1280342, name = "Rare Fishing", duration = 3600, expirationTime = now + 3400},
 }
 process("UNIT_AURA", "player")
 assert(plan("herbalismTea").activeSpellID == 1249907 and not plan("fishingFood").active)
-A.SetBarMode("mining")
-assert(plan("miningDraught").expires == now + 1600 and plan("herbalismDraught").activeSpellID == 1250887)
 assert(plan("fishingCamp").activeSpellID == 1280342 and not plan("fishingCamp").bag)
 assert(not plan("comprehensionScroll").tracked, "only Mages have a Comprehension category")
 class, carried, AlwaysBuffedDB = "MAGE", {[215257] = 1}, {barMode = "comprehension"}
@@ -331,4 +332,38 @@ event(nil, "PLAYER_LOGIN")
 local scroll = plan("comprehensionScroll")
 assert(A.state.barProfession == "comprehension" and scroll.tracked and scroll.bag.item.id == 215257)
 assert(scroll.activeSpellID == 435563 and scroll.expires == now + 3550)
-print("Shared camp, Herbalism, Mining and Mage Comprehension tracking passed.")
+print("Shared camp, Herbalism and Mage Comprehension tracking passed.")
+
+-- Tea is a profession category on the default bar, including when upgrading
+-- a character who used to select a standalone Herbalism bar.
+local teaCategory
+for _, category in ipairs(A.categories) do
+    if category.key == "herbalismTea" then teaCategory = category end
+end
+local herbRanks = {}
+function C_SkillInfo.GetSkillLineInfoByID(id)
+    if herbRanks[id] then return {rank = herbRanks[id]} end
+end
+class, gear[16], carried, auras = "ROGUE", dagger, {}, {}
+AlwaysBuffedDB = {barMode = "herbalism"}
+event(nil, "PLAYER_LOGIN")
+assert(A.db.barMode == "auto" and not A.state.barProfession, "a saved Herbalism bar migrates to Automatic")
+assert(A.OnActiveBar(teaCategory) and not plan("herbalismTea").tracked, "untrained characters can opt in to Tea")
+for _, id in ipairs({182, 2944}) do
+    herbRanks = {[id] = 1}
+    process("SKILL_LINES_CHANGED")
+    assert(plan("herbalismTea").tracked, "learning Herbalism enables the Tea reminder even with empty bags")
+end
+A.Prefs("herbalismTea").enabled = false
+A.Update()
+assert(not plan("herbalismTea").tracked, "opting out takes precedence over profession rank")
+herbRanks, carried[10841] = {}, 1
+A.Prefs("herbalismTea").enabled = true
+A.Update()
+assert(plan("herbalismTea").tracked and plan("herbalismTea").bag.item.id == 10841)
+gear[16] = pole
+process("PLAYER_EQUIPMENT_CHANGED", 16)
+assert(A.state.barProfession == "fishing" and not A.OnActiveBar(teaCategory))
+gear[16] = dagger
+process("PLAYER_EQUIPMENT_CHANGED", 16)
+assert(not A.state.barProfession and A.OnActiveBar(teaCategory) and plan("herbalismTea").tracked)

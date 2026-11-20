@@ -256,8 +256,8 @@ function Facts() {
     <div className="facts">
       <dl className="container facts-inner">
         {[
-          ['book', '359', 'Items & spells'],
-          ['layers', '36', 'Buff categories'],
+          ['book', '358', 'Items & spells'],
+          ['layers', '34', 'Buff categories'],
           ['compass', '28', 'Spec presets'],
         ].map(([icon, number, name]) => (
           <div key={name}>
@@ -349,8 +349,15 @@ const questions = [
     <>Type <code>/alwaysbuffed</code> or <code>/ab</code> and select <strong>Professions</strong>.
       In <strong>Automatic</strong> mode, equipping any fishing pole switches your bar, wheel, and shopping
       list to Fishing. Putting it away restores Combat. Track lures such as Nightcrawlers, fishing food,
-      the Shiny Silver Coin, and Fishing Rack or Hut bonuses. You can also select Herbalism for Goldthorn
-      Tea and hidden herbs, Mining for hidden nodes, or Mage Comprehension for its skill scroll.</>,
+      the Shiny Silver Coin, and Fishing Rack or Hut bonuses under <strong>Utility</strong>.
+      Mages can select Comprehension to track its skill scroll.</>,
+  ],
+  [
+    'Where does Herbalism Tea appear?',
+    <>Look on the default Combat bar. Trained herbalists start with the reminder enabled. Anyone can change
+      it under <strong>Professions → Herbalism Tea</strong>, with Find Herbs on or off. Drink Goldthorn Tea
+      for 10 seconds to gain +15 Herbalism for 15 minutes. Version 1.1.1 removed the hidden-herb and
+      hidden-mining reminders. Characters who had selected either gathering bar return to Automatic.</>,
   ],
   [
     'Can other gear switch me to the Fishing bar?',

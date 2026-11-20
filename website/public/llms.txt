@@ -11,7 +11,7 @@
 
 - [Spec rankings](https://github.com/SPDUK/AlwaysBuffed/blob/HEAD/docs/spec-rankings.md): How rankings differ across classes and talent builds.
 - [Consumable catalog](https://github.com/SPDUK/AlwaysBuffed/blob/HEAD/docs/catalog.md): Tracked categories, items, spells, and buff behavior.
-- [Profession buffs](https://github.com/SPDUK/AlwaysBuffed/blob/HEAD/docs/profession-buffs.md): Type `/alwaysbuffed` or `/ab` and select Professions. Equipping any fishing pole selects Fishing in Automatic mode. Herbalism, Mining, and Mage Comprehension also have dedicated bars. Both command aliases accept `wheel`, `lock`, `unlock`, `fishgear <item link or ID>`, and `fishgear clear`.
+- [Profession buffs](https://github.com/SPDUK/AlwaysBuffed/blob/HEAD/docs/profession-buffs.md): Type `/alwaysbuffed` or `/ab` and select Professions. Equipping any fishing pole selects Fishing in Automatic mode. Herbalism Tea appears on the default Combat bar when enabled. Mages can also select Comprehension. Both command aliases accept `wheel`, `lock`, `unlock`, `fishgear <item link or ID>`, and `fishgear clear`.
 - [Bar controls and language support](https://github.com/SPDUK/AlwaysBuffed#in-game): In General, set Icons grow to Left, Right, Up, or Down. The interface follows the WoW client language.
 - [Changelog](https://github.com/SPDUK/AlwaysBuffed/blob/HEAD/CHANGELOG.md): Release notes and fixes.
 - [GitHub issues](https://github.com/SPDUK/AlwaysBuffed/issues): Bug reports and feature requests.

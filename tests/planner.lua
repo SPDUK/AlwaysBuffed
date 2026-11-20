@@ -358,6 +358,23 @@ equal(daggerRows[277498].eligible,true,"dagger can use its mana proc scroll")
 equal(daggerRows[277498].group,"utility","conditional mana restoration remains a utility effect")
 equal(daggerRows[277489].eligible,false,"a sharp dagger cannot use a sword-only imbue")
 
+for _, category in ipairs(A.categories) do
+    if category.profession then
+        local class = category.class or "HUNTER"
+        local context = fixtureContext(class, "fishingPole", 20)
+        local list = A.PlanCategory(category, A.catalog[category.key], context, {}, A.profiles[class][1])
+        for _, row in ipairs(list.rows) do
+            equal(row.group, "utility", category.key .. " ranks profession items as Utility")
+        end
+    end
+end
+local fishingContext = fixtureContext("HUNTER", "fishingPole", 20)
+local function lurePlan(prefs)
+    return A.PlanCategory(categories.fishingLure, A.catalog.fishingLure, fishingContext, prefs or {}, hunter)
+end
+equal(lurePlan().bag.item.id, 6533, "the strongest eligible lure still wins within Utility")
+equal(lurePlan({pin = 6529}).bag.item.id, 6529, "a pin still overrides the profession ranking")
+
 local rem = {key="sleepingBag",kind="reminder"}
 local camp = {key="campfire",kind="reminder"}
 local bag = {id=3,name="Sleeping bag",level=1,maxLevel=59,requireOwned=true}

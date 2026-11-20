@@ -1,3 +1,9 @@
+# AlwaysBuffed 1.1.1
+
+- Fishing items now appear in one **Utility** group. Lures are still ranked by Fishing bonus, and tracked items keep priority.
+- Enabled **Herbalism Tea** appears on the default Combat bar. Learning Herbalism enables it by default, and the category checkbox overrides that choice. Find Herbs can be on or off. Equipping a fishing pole in Automatic mode still selects Fishing.
+- Removed the hidden-herb and hidden-mining reminders. Characters who had selected the old Herbalism or Mining bar return to Automatic.
+
 # AlwaysBuffed 1.1.0
 
 - Open settings with `/alwaysbuffed` or `/ab` and select **Professions** to track Fishing, Herbalism, Mining, or Mage Comprehension. In **Automatic** mode, equipping a fishing pole switches the bar and wheel to Fishing. Putting the pole away restores Combat.

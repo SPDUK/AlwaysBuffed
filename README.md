@@ -2,7 +2,7 @@
 
 <img align="right" width="96" height="96" src="docs/alwaysbuffed-icon.png" alt="AlwaysBuffed spell checklist icon">
 
-AlwaysBuffed ranks food, elixirs, weapon buffs, and other consumables for your spec in **World of Warcraft: Forever**. See what to buy, what you already carry, and which buffs are running out. Use items from the bar or radial wheel, with dedicated loadouts for Fishing, Herbalism, Mining, and Mage Comprehension.
+AlwaysBuffed ranks consumables for your spec in **World of Warcraft: Forever**. See what to buy, what you carry, and which buffs are running out. Track Herbalism Tea on your default bar, or switch to a dedicated bar for Fishing or Mage Comprehension.
 
 ## Install
 
@@ -42,7 +42,7 @@ The shopping list shows recommended purchases for the active bar, how many you c
 
 **Appearance** sets the accent for the whole addon, the background color, and the text, bar and wheel sizes. Each character starts with its class color on slate gray. Existing item choices and category preferences carry forward by profile.
 
-The catalog covers 359 distinct items and spells across 36 categories, including 346 distinct entries across 28 combat categories. The spec presets distinguish combat output from situational value. A Survival hunter prioritizes agility and melee procs, while a Holy priest prioritizes healing and mana regeneration. The catalog notes explain which effects share a selector and how to get them. [Spec rankings](docs/spec-rankings.md) · [Consumable coverage](docs/catalog.md)
+The catalog covers 358 distinct items and spells across 34 categories. The spec presets distinguish combat output from situational value. A Survival hunter prioritizes agility and melee procs, while a Holy priest prioritizes healing and mana regeneration. Profession categories group their items under **Utility**. [Spec rankings](docs/spec-rankings.md) · [Consumable coverage](docs/catalog.md)
 
 Dual wielders get separate main-hand and off-hand choices for stones, oils and applicable class imbues. A rogue sees **Main-Hand Poison** and **Off-Hand Poison** and can track a different poison on each hand alongside the weapon enhancement. The same slots use class-specific names for Shaman weapon imbues, Mage weapon scrolls and Warlock stones. Switching to a shield or unequipping a weapon removes that hand from the bar while preserving its choices. Shaman spells that automatically choose a hand follow the client's casting rules. The wheel opens outside combat. The bar keeps its assigned actions during combat and refreshes them afterward.
 
@@ -52,11 +52,10 @@ Type `/alwaysbuffed` or `/ab` and select **Professions** in the sidebar to choos
 
 The active mode switches the buff bar and wheel to that loadout’s categories. **Automatic** opens the Fishing bar when you equip a fishing pole and returns to Combat when you put it away. Select **Combat** or a profession to keep that bar active until you choose another mode.
 
-| Loadout | Buffs |
+| Profession | Buffs |
 | --- | --- |
 | Fishing | Pole lures, Fishing skill food, Shiny Silver Coin, and Fishing Rack or Hut catch bonuses. The Wide-Brimmed Fishing Hat can apply its reusable lure while equipped and ready. |
-| Herbalism | Goldthorn Tea for +15 Herbalism and Revealing Draught for hidden herbs. |
-| Mining | Revealing Draught for hidden mining nodes. |
+| Herbalism | **Herbalism Tea** appears on the default Combat bar when enabled. Learning Herbalism enables it by default. The checkbox works with Find Herbs on or off. Drink Goldthorn Tea for 10 seconds to gain +15 Herbalism for 15 minutes. |
 | Comprehension (Mage) | Scroll of Comprehension for +15 Comprehension skill. |
 
 To use another equipped item as a signal for **Automatic** fishing mode, enter `/ab fishgear <item link or ID>`. This remembers one item for your character. Use `/ab fishgear clear` to remove it. Applying a lure still requires a fishing pole in your main hand. [Profession buff details](docs/profession-buffs.md)

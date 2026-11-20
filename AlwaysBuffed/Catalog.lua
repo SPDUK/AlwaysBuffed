@@ -41,8 +41,6 @@ A.categories = {
     { key = "fishingCoin", label = L["Fishing Coin"], icon = 237282, kind = "item", profession = "fishing" },
     { key = "fishingCamp", label = L["Fishing Camp"], icon = 1053359, kind = "item", profession = "fishing" },
     { key = "herbalismTea", label = L["Herbalism Tea"], icon = 132802, kind = "item", profession = "herbalism" },
-    { key = "herbalismDraught", label = L["Hidden Herbs"], icon = 967559, kind = "item", profession = "herbalism" },
-    { key = "miningDraught", label = L["Hidden Mining Nodes"], icon = 967559, kind = "item", profession = "mining" },
     { key = "comprehensionScroll", label = L["Comprehension Scroll"], icon = 4549171, kind = "item", profession = "comprehension", class = "MAGE" },
 }
 
@@ -470,13 +468,6 @@ A.catalog = {
 A.catalog.weaponOffhand = A.catalog.weapon
 A.catalog.imbueOffhand = A.catalog.imbue
 
--- The Forever recipe and use effect exist, but the build lacks the sparse item
--- record. Show it when carried and track the aura even without an item in bags.
-A.catalog.miningDraught = {
-    {id = 250326, name = "Revealing Draught", level = 1, ownedOnly = true, stats = {}, auras = {1250887}, duration = 1800,
-        note = L["Reveals hidden Mining and Herbalism nodes for 30 minutes."]},
-}
-A.catalog.herbalismDraught = A.catalog.miningDraught
 A.catalog.comprehensionScroll = {
     {id = 215257, name = "Scroll of Comprehension", level = 1, class = "MAGE", stats = {comprehension = 15}, auras = {435563}, duration = 3600},
 }

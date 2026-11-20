@@ -15,7 +15,7 @@
 ## Notes-ruRU: Еда для прокачки, списки покупок расходуемых предметов и напоминания об усилениях для WoW Forever.
 ## Notes-zhCN: 为 WoW Forever 提供练级食物推荐、消耗品购物清单和增益提醒。
 ## Notes-zhTW: 為 WoW Forever 提供練等食物推薦、消耗品購物清單和增益提醒。
-## Version: 1.1.0
+## Version: 1.1.1
 ## Category: Combat
 ## IconTexture: Interface\AddOns\AlwaysBuffed\Media\AlwaysBuffed
 ## SavedVariablesPerCharacter: AlwaysBuffedDB
