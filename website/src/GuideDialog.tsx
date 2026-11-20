@@ -95,7 +95,7 @@ function RankingsExample() {
         {note}
       </p>
       <p className="guide-in-game">
-        In game, open <code>/ab</code> → <strong>Elixir</strong>. Choose <strong>Auto</strong> to follow your
+        In game, type <code>/alwaysbuffed</code> or <code>/ab</code> and select <strong>Elixir</strong>. Choose <strong>Auto</strong> to follow your
         talents or pick a named profile.
       </p>
     </>
@@ -306,7 +306,7 @@ function WheelExample({ onClose }: { onClose: () => void }) {
         )}
       </p>
       <p className="guide-in-game">
-        Outside combat, open the clickable wheel with <code>/ab wheel</code>. Set a shortcut in{' '}
+        Outside combat, open the clickable wheel with <code>/alwaysbuffed wheel</code> or <code>/ab wheel</code>. Set a shortcut in{' '}
         <strong>General</strong> to hold, aim at a slice, and release. Return to the center or press Escape to
         cancel.
       </p>

@@ -5,12 +5,32 @@
 ## X-Copyright: Copyright (C) 2026 SPDUK
 ## X-License: GPL-3.0-only
 ## Notes: Leveling food, consumable shopping lists, and one-click buff reminders for WoW Forever.
-## Version: 1.0.4
+## Notes-deDE: Essen zum Leveln, Einkaufslisten für Verbrauchsgüter und Buff-Erinnerungen für WoW Forever.
+## Notes-esES: Comida para subir de nivel, listas de consumibles y recordatorios de beneficios para WoW Forever.
+## Notes-esMX: Comida para subir de nivel, listas de consumibles y recordatorios de beneficios para WoW Forever.
+## Notes-frFR: Nourriture pour la montée en niveau, listes de consommables et rappels d’améliorations pour WoW Forever.
+## Notes-itIT: Cibo per salire di livello, liste della spesa e promemoria dei benefici per WoW Forever.
+## Notes-koKR: WoW Forever 레벨업용 음식, 소모품 구매 목록, 강화 효과 알림을 제공합니다.
+## Notes-ptBR: Comida para subir de nível, listas de consumíveis e lembretes de bônus para WoW Forever.
+## Notes-ruRU: Еда для прокачки, списки покупок расходуемых предметов и напоминания об усилениях для WoW Forever.
+## Notes-zhCN: 为 WoW Forever 提供练级食物推荐、消耗品购物清单和增益提醒。
+## Notes-zhTW: 為 WoW Forever 提供練等食物推薦、消耗品購物清單和增益提醒。
+## Version: 1.1.0
 ## Category: Combat
 ## IconTexture: Interface\AddOns\AlwaysBuffed\Media\AlwaysBuffed
 ## SavedVariablesPerCharacter: AlwaysBuffedDB
 ## OptionalDeps: Auctionator
 
+Locale.lua
+Locales/deDE.lua
+Locales/esES.lua
+Locales/frFR.lua
+Locales/itIT.lua
+Locales/koKR.lua
+Locales/ptBR.lua
+Locales/ruRU.lua
+Locales/zhCN.lua
+Locales/zhTW.lua
 Catalog.lua
 Categories.lua
 Profiles.lua

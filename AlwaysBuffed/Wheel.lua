@@ -1,4 +1,5 @@
 local _, A = ...
+local L = A.L
 
 local BINDING = "ALWAYSBUFFED_TOGGLE_WHEEL"
 local TWO_PI = 2 * math.pi
@@ -8,19 +9,19 @@ local ATLAS_SIZE, CELL_SIZE, MASK_RADIUS = 2048, 320, 112
 local COLUMNS, DISC = 6, 35
 local COLORS = A.theme.colors
 local LABELS = {
-    elixirDefense = "Def. Elixir",
-    elixirRegen = "Regen Elixir",
-    scrollStrength = "Strength",
-    scrollAgility = "Agility",
-    scrollStamina = "Stamina",
-    scrollIntellect = "Intellect",
-    scrollSpirit = "Spirit",
-    scrollProtection = "Protection",
-    weapon = "Main Hand",
-    imbue = "Main Imbue",
-    weaponOffhand = "Off Hand",
-    imbueOffhand = "Off-Hand Imbue",
-    sleepingBag = "Sleeping Bag",
+    elixirDefense = L["Def. Elixir"],
+    elixirRegen = L["Regen Elixir"],
+    scrollStrength = L["Strength"],
+    scrollAgility = L["Agility"],
+    scrollStamina = L["Stamina"],
+    scrollIntellect = L["Intellect"],
+    scrollSpirit = L["Spirit"],
+    scrollProtection = L["Protection"],
+    weapon = L["Main Hand"],
+    imbue = L["Main Imbue"],
+    weaponOffhand = L["Off Hand"],
+    imbueOffhand = L["Off-Hand Imbue"],
+    sleepingBag = L["Sleeping Bag"],
 }
 
 local wheel, preview, bindingOwner, escapeOwner, escapeButton
@@ -29,7 +30,7 @@ local entries, selected, mode, held, originX, originY, bindingSignature, statusA
 local bindingsUpdating, bindingsWaiting
 
 BINDING_HEADER_ALWAYSBUFFED = "AlwaysBuffed"
-BINDING_NAME_ALWAYSBUFFED_TOGGLE_WHEEL = "Hold buff wheel"
+BINDING_NAME_ALWAYSBUFFED_TOGGLE_WHEEL = L["Hold buff wheel"]
 
 local function cursorPosition()
     local scale = wheel:GetEffectiveScale()
@@ -152,9 +153,9 @@ local function paintCenter(entry)
         local highlighted = entry.active or entry.statusMode == "pending" or entry.statusMode == "cooldown"
         colorFont(art.detail, highlighted and COLORS.gold or COLORS.muted)
     else
-        art.title:SetText("Buff wheel")
+        art.title:SetText(L["Buff wheel"])
         colorFont(art.title, COLORS.text)
-        art.detail:SetText(mode == "hold" and "Move to choose" or "Click a slice")
+        art.detail:SetText(mode == "hold" and L["Move to choose"] or L["Click a slice"])
         colorFont(art.detail, COLORS.muted)
     end
 end
@@ -169,7 +170,7 @@ local function readStatus(entry, now)
     elseif A.EffectIsCurrent(state.active, state.expires, now) then
         entry.active = true
         local duration = state.expires and state.expires > now and A.BuffDuration(state.expires - now, true)
-        entry.statusDetail = duration and ("Active  ·  " .. duration .. " left") or "Active"
+        entry.statusDetail = duration and L["Active  ·  %s left"]:format(duration) or L["Active"]
     else
         entry.active, entry.statusDetail = false, nil
     end
@@ -210,7 +211,7 @@ local function snapshot()
     local tracked = {}
     for _, category in ipairs(A.categories) do
         local state = A.state.categories[category.key]
-        if state and state.tracked ~= false and state.applicable ~= false then
+        if state and state.tracked ~= false and state.applicable ~= false and A.OnActiveBar(category) then
             local row = state.bag
             local display = row or state.buy or (state.rows and state.rows[1])
             local entry = {
@@ -221,11 +222,11 @@ local function snapshot()
                 name = row and row.name or category.label,
             }
             if row and (row.count or 0) > 0 then
-                entry.detail = ("%d in bags"):format(row.count)
+                entry.detail = L["%d in bags"]:format(row.count)
             elseif row then
-                entry.detail = "Ready"
+                entry.detail = L["Ready"]
             else
-                entry.detail = entry.reminder and "Reminder only" or "None in bags"
+                entry.detail = entry.reminder and L["Reminder only"] or L["None in bags"]
             end
             tracked[#tracked + 1] = entry
         end
@@ -283,11 +284,11 @@ local function closeWheel()
 end
 
 local function openWheel(nextMode)
-    if InCombatLockdown() then return false, "The buff wheel opens outside combat." end
-    if not A.db.showWheel then return false, "The buff wheel is disabled." end
+    if InCombatLockdown() then return false, L["The buff wheel opens outside combat."] end
+    if not A.db.showWheel then return false, L["The buff wheel is disabled."] end
 
     local tracked = snapshot()
-    if #tracked == 0 then return false, "Track a buff category to open the wheel." end
+    if #tracked == 0 then return false, L["Track a buff category to open the wheel."] end
     if mode then closeWheel() end
     mode, entries = nextMode, tracked
     resize()
@@ -309,7 +310,7 @@ end
 local function armAction(button)
     if InCombatLockdown() or not A.db.showWheel then return end
     local entry = entries[getSelection()]
-    if not entry or not entry.row then return end
+    if not entry or not entry.row or not A.OnActiveBar(entry.category) then return end
 
     -- Keep the displayed action stable throughout a gesture. A changed bag choice
     -- or disabled category invalidates it instead of sending a different action.
@@ -424,17 +425,17 @@ function A.GetWheelBinding()
 end
 
 function A.SetWheelBinding(key)
-    if InCombatLockdown() then return false, "Change the wheel binding after combat." end
+    if InCombatLockdown() then return false, L["Change the wheel binding after combat."] end
     if key == "" then key = nil end
     if key then
-        if not supportsHold(key) then return false, "Choose a key or mouse button you can hold." end
+        if not supportsHold(key) then return false, L["Choose a key or mouse button you can hold."] end
         local action = GetBindingAction(key, true)
         if action and action ~= "" and action ~= BINDING and not A.IsRetiredBuffBinding(action)
             and not action:match("^CLICK AlwaysBuffedWheelBinding%d+") then
             local name = _G["BINDING_NAME_" .. action] or action
-            return false, ("%s is already bound to %s."):format(key, name)
+            return false, L["%s is already bound to %s."]:format(key, name)
         end
-        if not SetBinding(key, BINDING) then return false, "That key cannot be bound to the buff wheel." end
+        if not SetBinding(key, BINDING) then return false, L["That key cannot be bound to the buff wheel."] end
     end
     for _, old in ipairs({ GetBindingKey(BINDING) }) do
         if old ~= key then SetBinding(old) end
@@ -449,7 +450,7 @@ function A.ToggleWheel()
         closeWheel()
         return true
     end
-    if not wheel then return false, "The buff wheel is unavailable." end
+    if not wheel then return false, L["The buff wheel is unavailable."] end
     return openWheel("preview")
 end
 
@@ -466,6 +467,8 @@ function A.RefreshWheel()
             layout()
             updateSelection()
         end
+    elseif not A.OnActiveBar(entries[1].category) then
+        closeWheel()
     else
         refreshStatuses(GetTime())
     end

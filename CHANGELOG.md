@@ -1,3 +1,10 @@
+# AlwaysBuffed 1.1.0
+
+- Open settings with `/alwaysbuffed` or `/ab` and select **Professions** to track Fishing, Herbalism, Mining, or Mage Comprehension. In **Automatic** mode, equipping a fishing pole switches the bar and wheel to Fishing. Putting the pole away restores Combat.
+- The Fishing bar tracks lures, fishing food, the Shiny Silver Coin, and Fishing Rack or Hut bonuses. Use `/ab fishgear <item link or ID>` to register an extra item that selects the Fishing bar when equipped.
+- In **General → Icons grow**, choose Left, Right, Up, or Down. The grip stays in place as icons expand or collapse.
+- The interface follows the WoW client language. Translation files cover German, Spanish, French, Italian, Korean, Brazilian Portuguese, Russian, Simplified Chinese, and Traditional Chinese, with English as the fallback.
+
 # AlwaysBuffed 1.0.4
 
 - Release packaging for CurseForge. Gameplay is unchanged from 1.0.3.

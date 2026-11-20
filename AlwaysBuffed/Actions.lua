@@ -1,4 +1,5 @@
 local _, A = ...
+local L = A.L
 
 local T, C = A.theme, A.theme.colors
 local addonIcon = "Interface\\AddOns\\AlwaysBuffed\\Media\\AlwaysBuffed"
@@ -75,11 +76,11 @@ local function showTooltip(button)
                 GameTooltip:AddLine(description, 1, 1, 1, true)
             end
         elseif mode == "missing" then
-            GameTooltip:AddLine(state.reminderReason or (item and item.note) or "Use a nearby campsite.", 1, 1, 1, true)
+            GameTooltip:AddLine(state.reminderReason or (item and item.note) or L["Use a nearby campsite."], 1, 1, 1, true)
         end
         if state.bag then
             local itemName = state.bag.name or state.bag.item.name or button.category.label
-            GameTooltip:AddLine("Click to use " .. itemName .. ".", 0.84, 0.84, 0.84, true)
+            GameTooltip:AddLine(L["Click to use %s."]:format(itemName), 0.84, 0.84, 0.84, true)
         end
     else
         if item and item.spell then
@@ -91,35 +92,35 @@ local function showTooltip(button)
         end
         if button.category.slot and item then GameTooltip:AddLine(button.category.label, 0.84, 0.84, 0.84) end
         if A.EffectIsCurrent(state.active, state.expires, now) then
-            local text = "Active: " .. state.active
+            local text = L["Active: %s"]:format(state.active)
             if state.expires and state.expires > now then text = text .. " (" .. A.BuffDuration(state.expires - now) .. ")" end
             GameTooltip:AddLine(text, unpack(A.activeBorderColor))
         end
         if button.actionType == "item" and button.count > 0 then
-            GameTooltip:AddLine(("%d in your bags"):format(button.count), 1, 1, 1)
+            GameTooltip:AddLine(L["%d in your bags"]:format(button.count), 1, 1, 1)
         end
         if button.ready then
-            local hint = "Click to use."
+            local hint = L["Click to use."]
             if item and item.spell and button.category.slot then
-                hint = "Click to cast. Shaman imbues may choose a hand automatically."
+                hint = L["Click to cast. Shaman imbues may choose a hand automatically."]
             elseif button.category.slot then
-                hint = button.category.slot == 17 and "Apply to your off hand." or "Apply to your main hand."
+                hint = button.category.slot == 17 and L["Apply to your off hand."] or L["Apply to your main hand."]
             end
             GameTooltip:AddLine(hint, 0.84, 0.84, 0.84, true)
         else
-            GameTooltip:AddLine("None in your bags", 0.84, 0.84, 0.84)
+            GameTooltip:AddLine(L["None in your bags"], 0.84, 0.84, 0.84)
         end
     end
     local key = A.GetBuffBinding(button.category.key)
-    if key then GameTooltip:AddLine("Shortcut: " .. GetBindingText(key, "KEY_"), 1, 1, 1) end
+    if key then GameTooltip:AddLine(L["Shortcut: %s"]:format(GetBindingText(key, "KEY_")), 1, 1, 1) end
     if state.upgrade then
-        GameTooltip:AddLine("Upgrade available: " .. state.upgrade.name, unpack(C.mint))
-        GameTooltip:AddLine("Right-click to view the upgrade.", unpack(C.muted))
+        GameTooltip:AddLine(L["Upgrade available: %s"]:format(state.upgrade.name), unpack(C.mint))
+        GameTooltip:AddLine(L["Right-click to view the upgrade."], unpack(C.muted))
     else
-        GameTooltip:AddLine("Right-click for this category.", unpack(C.muted))
+        GameTooltip:AddLine(L["Right-click for this category."], unpack(C.muted))
     end
     if button.waiting then
-        GameTooltip:AddLine("The selected action updates after combat.", unpack(C.muted))
+        GameTooltip:AddLine(L["The selected action updates after combat."], unpack(C.muted))
     end
     GameTooltip:Show()
 end
@@ -171,7 +172,7 @@ local function makeAction(parent, category, size)
     if category.slot then
         local hand = font(button, 10, "OUTLINE", 10)
         hand:SetPoint("BOTTOMRIGHT", -3, 4)
-        hand:SetText(category.slot == 17 and "OH" or "MH")
+        hand:SetText(category.slot == 17 and L["OH"] or L["MH"])
         button.handText = hand
     end
     inset(solid(button, "HIGHLIGHT", C.text, 0.16), button, 1)
@@ -324,8 +325,8 @@ end
 local function launchTooltip(self, help)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:SetText("AlwaysBuffed", unpack(C.text))
-    GameTooltip:AddLine("Left-click to open settings.", unpack(C.muted))
-    if A.db.showWheel then GameTooltip:AddLine("Right-click to open the buff wheel.", unpack(C.muted)) end
+    GameTooltip:AddLine(L["Left-click to open settings."], unpack(C.muted))
+    if A.db.showWheel then GameTooltip:AddLine(L["Right-click to open the buff wheel."], unpack(C.muted)) end
     if help then GameTooltip:AddLine(help, unpack(C.muted)) end
     GameTooltip:Show()
 end
@@ -366,7 +367,7 @@ local function makeMinimap()
     icon:SetPoint("CENTER", 0, 1)
     icon:SetTexture(addonIcon)
     minimap:SetScript("OnClick", launchClick)
-    minimap:SetScript("OnEnter", function(self) launchTooltip(self, "Drag around the minimap to move.") end)
+    minimap:SetScript("OnEnter", function(self) launchTooltip(self, L["Drag around the minimap to move."]) end)
     minimap:SetScript("OnLeave", function() GameTooltip:Hide() end)
     minimap:SetScript("OnDragStart", function(self)
         self:SetScript("OnUpdate", function()
@@ -407,6 +408,9 @@ end
 
 local function layoutActions(visible)
     if #visible == 0 then
+        for _, button in pairs(buttons) do
+            if button:IsShown() then button:Hide() end
+        end
         layoutKey = nil
         return
     end
@@ -414,21 +418,37 @@ local function layoutActions(visible)
     local screenW, screenH = UIParent:GetWidth() / scale, UIParent:GetHeight() / scale
     local left, top = bar:GetLeft() or 0, bar:GetTop() or screenH
     local right, bottom = left + GRIP_SIZE, top - GRIP_SIZE
-    local vertical = A.db.barOrientation == "vertical"
+    local direction = A.db.barDirection
+    local vertical = direction == "up" or direction == "down" or (not direction and A.db.barOrientation == "vertical")
     local pitch = BAR_SIZE + GAP
-    local full = #visible * pitch
+    local forwardSpace = vertical and bottom or screenW - right
+    local backwardSpace = vertical and screenH - top or left
+    if not direction then
+        -- Preserve the side old horizontal and vertical layouts chose at this position.
+        local forward = not A.db.barOrientation or #visible * pitch <= forwardSpace or forwardSpace >= backwardSpace
+        if vertical then
+            direction = forward and "down" or "up"
+        else
+            direction = forward and "right" or "left"
+        end
+        A.db.barDirection = direction
+    end
+    A.db.barOrientation = nil
+
+    local forward = direction == "right" or direction == "down"
+    local limit = forward and forwardSpace or backwardSpace
+    local oppositeLimit = forward and backwardSpace or forwardSpace
+    local crossForwardSpace = vertical and screenW - left or top
+    local crossBackwardSpace = vertical and right or screenH - bottom
+    local crossLines = math.max(1, math.floor((math.max(crossForwardSpace, crossBackwardSpace) - GAP) / pitch))
+    -- Use the opposite side if wrapping toward the preferred edge would leave more tiles off screen.
+    if #visible > math.floor(limit / pitch) * crossLines
+        and math.floor(oppositeLimit / pitch) > math.floor(limit / pitch) then
+        forward, limit = not forward, oppositeLimit
+    end
     local keys = {}
     for i, cat in ipairs(visible) do
         keys[i] = cat.key
-    end
-    -- Open toward the nearest available space when the preferred side would clip.
-    local forward, limit
-    if vertical then
-        forward = full <= bottom or bottom >= screenH - top
-        limit = forward and bottom or screenH - top
-    else
-        forward = full <= screenW - right or screenW - right >= left
-        limit = forward and screenW - right or left
     end
     local key = table.concat(keys, ",") .. (vertical and "v" or "h") .. (forward and "+" or "-")
         .. (":%d:%d:%d:%d:%d"):format(limit, left, top, screenW, screenH)
@@ -439,13 +459,12 @@ local function layoutActions(visible)
         -- The padded grip already supplies the gap before the first action.
         local length, breadth = perLine * pitch, lines * pitch + GAP
         local width, height = vertical and breadth or length, vertical and length or breadth
+        local crossForward = breadth <= crossForwardSpace or crossForwardSpace >= crossBackwardSpace
         local growRight, growDown
         if vertical then
-            growDown = forward
-            growRight = width <= screenW - left or screenW - left >= right
+            growRight, growDown = crossForward, forward
         else
-            growRight = forward
-            growDown = height <= top or top >= screenH - bottom
+            growRight, growDown = forward, crossForward
         end
         local xSide, ySide = growRight and "LEFT" or "RIGHT", growDown and "TOP" or "BOTTOM"
         local from = ySide .. xSide
@@ -464,7 +483,6 @@ local function layoutActions(visible)
             b:ClearAllPoints()
             local along = (i - 1) % perLine
             local across = math.floor((i - 1) / perLine)
-            if vertical and not growDown then along = perLine - 1 - along end
             local acrossOffset = GAP + across * pitch
             local x = vertical and acrossOffset or along * pitch
             local y = vertical and along * pitch or acrossOffset
@@ -551,15 +569,15 @@ end
 local function gripTooltip(self)
     local collapsed = bar:GetAttribute("collapsed")
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:SetText("AlwaysBuffed")
-    GameTooltip:AddLine(collapsed and "Click to expand the buff bar." or "Click to collapse the buff bar.")
+    GameTooltip:SetText(A.state.barProfession and A.BarModeLabel(A.state.barProfession) or "AlwaysBuffed")
+    GameTooltip:AddLine(collapsed and L["Click to expand the buff bar."] or L["Click to collapse the buff bar."])
     if collapsed then
-        GameTooltip:AddLine(("%d missing"):format(missingCount), unpack(missingCount > 0 and C.missing or C.muted))
-        GameTooltip:AddLine(("%d active"):format(activeCount), unpack(C.mint))
+        GameTooltip:AddLine(L["%d missing"]:format(missingCount), unpack(missingCount > 0 and C.missing or C.muted))
+        GameTooltip:AddLine(L["%d active"]:format(activeCount), unpack(C.mint))
     end
-    if not A.db.locked then GameTooltip:AddLine("Drag to move.") end
-    GameTooltip:AddLine("Shift-click for settings.")
-    if A.db.showWheel then GameTooltip:AddLine("Right-click for the wheel.") end
+    if not A.db.locked then GameTooltip:AddLine(L["Drag to move."]) end
+    GameTooltip:AddLine(L["Shift-click for settings."])
+    if A.db.showWheel then GameTooltip:AddLine(L["Right-click for the wheel."]) end
     GameTooltip:Show()
 end
 
@@ -578,7 +596,7 @@ function A.RefreshGripCounts()
         missingCount, activeCount = 0, 0
         for _, category in ipairs(A.categories) do
             local state = A.state.categories[category.key]
-            if state and state.tracked and state.applicable ~= false then
+            if state and state.tracked and state.applicable ~= false and A.OnActiveBar(category) then
                 if A.EffectIsCurrent(state.active, state.expires, now) then
                     activeCount = activeCount + 1
                 else
@@ -609,11 +627,14 @@ function A.RefreshActions()
     local visible = {}
     for _, category in ipairs(A.categories) do
         local plan = A.state.categories[category.key]
-        if plan and plan.tracked and plan.applicable ~= false then
+        local button = buttons[category.key]
+        if locked then
+            if plan and button:IsShown() then paintAction(button, plan, true) end
+        elseif plan and plan.tracked and plan.applicable ~= false and A.OnActiveBar(category) then
             visible[#visible + 1] = category
-        end
-        if plan and (plan.tracked or buttons[category.key]:IsShown()) then
-            paintAction(buttons[category.key], plan, locked)
+            paintAction(button, plan, false)
+        elseif button.actionRow then
+            A.SetAction(button, category, nil)
         end
     end
     if minimap then minimap:SetShown(A.db.showMinimap) end

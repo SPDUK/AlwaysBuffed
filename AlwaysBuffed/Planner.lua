@@ -1,8 +1,13 @@
 local _, A = ...
+local L = A.L
 
 local COOKING = 185
 
--- Only Game.lua knows how to read the client. The planner can rank a snapshot
+function A.DefaultTracked(category, profile)
+    return category.profession ~= nil or profile.tracked[category.key] == true
+end
+
+-- Only Game.lua reads gameplay state. The planner can rank a snapshot
 -- before item names have loaded or on a machine without WoW installed.
 function A.SelectProfile(profiles, choice, talentPoints)
     local best, most = profiles[1], 0
@@ -32,9 +37,11 @@ local function rankOrder(left, right)
     if not left.eligible and left.level ~= right.level then return left.level < right.level end
     if left.item.isBasic ~= right.item.isBasic then return not left.item.isBasic end
     if left.score ~= right.score then return left.score > right.score end
+    -- When a ready equipped lure matches a consumable, save the consumable.
+    if left.equipped ~= right.equipped then return left.equipped end
     if left.level ~= right.level then return left.level > right.level end
     if left.price ~= right.price then return (left.price or math.huge) < (right.price or math.huge) end
-    if left.name ~= right.name then return left.name < right.name end
+    if left.item.name ~= right.item.name then return left.item.name < right.item.name end
     return left.item.id < right.item.id
 end
 
@@ -81,25 +88,32 @@ local function newTrackedUpgrade(rows, seen, pinned, bag)
     if improves(candidate, baseline) then return candidate end
 end
 
-local function restriction(item, level, count, ctx, weapon, weaponSubclass, weaponRequired)
-    if ctx.level < level then return "Level " .. level end
-    if item.maxLevel and ctx.level > item.maxLevel then return "Through level " .. item.maxLevel end
-    if item.class and item.class ~= ctx.class then return "Class restricted" end
-    if (item.weapon and (not weapon or (item.weapon ~= "any" and item.weapon ~= weapon)))
+local function restriction(item, level, count, ctx, weapon, weaponSubclass, weaponRequired, info)
+    if ctx.level < level then return L["Level %d"]:format(level) end
+    if item.maxLevel and ctx.level > item.maxLevel then return L["Through level %d"]:format(item.maxLevel) end
+    if item.class and item.class ~= ctx.class then return L["Class restricted"] end
+    local anyMelee = item.weapon == "any" and weapon and weapon ~= "fishingPole"
+    if (item.weapon and item.weapon ~= weapon and not anyMelee)
         or (item.weaponSubclass and item.weaponSubclass ~= weaponSubclass) then
         return weaponRequired
     end
     if item.skillLine and ctx.skill(item.skillLine) < (item.skillRank or 1) then
-        local skill = item.skillLine == COOKING and "Cooking " or "profession skill "
-        return "Requires " .. skill .. (item.skillRank or 1)
+        local required = item.skillLine == COOKING and L["Requires Cooking %d"]
+            or item.skillLine == 356 and L["Requires Fishing %d"] or L["Requires profession skill %d"]
+        return required:format(item.skillRank or 1)
     end
-    if item.spell and not ctx.known(item.spell) then return "Spell not learned" end
-    if (item.requireOwned or item.ownedOnly) and count == 0 and not item.spell then return "Carried items only" end
+    if item.spell and not ctx.known(item.spell) then return L["Spell not learned"] end
+    if (item.requireOwned or item.ownedOnly) and count == 0 and not item.spell then return L["Carried items only"] end
+    if item.equipSlot and not info.equipped then return L["Must be equipped"] end
+    if info.cooldownEnds then return L["On cooldown"] end
 end
 
 local function rankEffect(item, category, profile, level)
     if category.key == "campfire" then return "utility", item.capacity or 0 end
     local stats = item.stats or {}
+    if category.profession then
+        return "best", stats[category.profession] or stats.catchQuality or 1
+    end
     local direct, situational, hasOtherStat = 0, 0, false
     for stat, amount in pairs(stats) do
         if stat ~= "xp" and amount ~= 0 then
@@ -120,6 +134,49 @@ local function rankEffect(item, category, profile, level)
     if situational > 0 or experience > 0 then return "utility", value end
     return "notUseful", 0
 end
+
+A.statLabels = {
+    fishing = L["Fishing"],
+    herbalism = L["Herbalism"],
+    comprehension = L["Comprehension"],
+    agi = L["Agi"],
+    str = L["Str"],
+    sta = L["Sta"],
+    int = L["Int"],
+    spi = L["Spirit"],
+    ap = L["AP"],
+    map = L["Melee AP"],
+    spell = L["Spell power"],
+    spellCrit = L["Spell crit"],
+    mp5 = L["MP5"],
+    hp5 = L["HP5"],
+    armor = L["Armor"],
+    hp = L["Health"],
+    mana = L["Mana"],
+    crit = L["Crit"],
+    hit = L["Hit"],
+    defense = L["Defense"],
+    haste = L["Haste"],
+    phys = L["Physical damage"],
+    weapon = L["Weapon damage"],
+    heal = L["Healing"],
+    holy = L["Holy damage"],
+    xp = L["XP"],
+    arcane = L["Arcane damage"],
+    fire = L["Fire damage"],
+    frost = L["Frost damage"],
+    nature = L["Nature damage"],
+    shadow = L["Shadow damage"],
+    resist = L["All resistance"],
+    weaponCrit = L["Weapon crit"],
+    spellPenFire = L["Fire spell pen."],
+    spellPenFrost = L["Frost spell pen."],
+    shadowResist = L["Shadow resistance"],
+    fireResist = L["Fire resistance"],
+    frostResist = L["Frost resistance"],
+    reactiveDamageTaken = L["Enemy damage taken"],
+    thorns = L["Reflected damage"],
+}
 
 local statSearchTerms = {
     str = "strength", agi = "agility", sta = "stamina", int = "intellect intelligence mana pool",
@@ -145,16 +202,29 @@ local statSearchTerms = {
     frostbrand = "frostbrand frost damage slow melee proc", rockbiter = "rockbiter attack power threat", imbue = "weapon imbue",
 }
 
+local fullStatNames = {
+    str = L["Strength"],
+    agi = L["Agility"],
+    sta = L["Stamina"],
+    int = L["Intellect"],
+    ap = L["Attack Power"],
+    xp = L["kill XP"],
+}
+
+local foldCase = C_Intl and C_Intl.FoldCase or string.lower
+
 function A.MatchesItemSearch(row, query)
-    query = query:match("^%s*(.-)%s*$"):lower()
+    query = query:match("^%s*(.-)%s*$")
     if query == "" then return true end
+    query = foldCase(query) or query:lower()
     local function matches(value)
-        return value and value:lower():find(query, 1, true) ~= nil
+        return value and (foldCase(value) or value:lower()):find(query, 1, true) ~= nil
     end
     local item = row.item
     if matches(row.name) or matches(item.name) or matches(item.note) then return true end
     for stat, amount in pairs(item.stats or {}) do
-        if amount ~= 0 and (matches(stat) or matches(statSearchTerms[stat])) then return true end
+        if amount ~= 0 and (matches(stat) or matches(A.statLabels[stat]) or matches(fullStatNames[stat])
+            or matches(statSearchTerms[stat])) then return true end
     end
     for _, aura in ipairs(item.auraNames or {}) do
         if matches(aura) then return true end
@@ -172,23 +242,27 @@ end
 
 function A.PlanCategory(category, catalog, ctx, prefs, profile)
     local tracked = prefs.enabled
-    if tracked == nil then tracked = profile.tracked[category.key] == true end
+    if tracked == nil then tracked = A.DefaultTracked(category, profile) end
     local weapon = category.slot and ctx.weapons[category.slot]
     local weaponSubclass = category.slot and ctx.weaponSubclasses and ctx.weaponSubclasses[category.slot]
-    local weaponRequired = category.slot == 17 and "Requires a compatible off-hand weapon"
-        or "Requires a compatible main-hand weapon"
-    local result = {rows = {}, applicable = category.slot == nil or weapon ~= nil}
+    local lure = category.profession == "fishing" and category.slot ~= nil
+    local weaponRequired = lure and L["Requires a fishing pole"]
+        or category.slot == 17 and L["Requires a compatible off-hand weapon"]
+        or L["Requires a compatible main-hand weapon"]
+    local applicable = not category.slot or (weapon ~= nil and (weapon == "fishingPole") == lure)
+    local result = {rows = {}, applicable = applicable}
     local pinnedBuy, pinnedBag, cheapest
     for _, item in ipairs(catalog) do
         if not item.class or item.class == ctx.class then
             local info = ctx.info(item)
+            if info.equipped then result.equippedSlot, result.cooldownEnds = item.equipSlot, info.cooldownEnds end
             local level = info.level or item.level
             local count = info.count or 0
-            local reason = restriction(item, level, count, ctx, weapon, weaponSubclass, weaponRequired)
+            local reason = restriction(item, level, count, ctx, weapon, weaponSubclass, weaponRequired, info)
             local group, score = rankEffect(item, category, profile, ctx.level)
             local row = {
                 item = item, name = info.name or item.name, icon = info.icon or category.icon,
-                level = level, count = count, price = info.price, eligible = not reason,
+                level = level, count = count, price = info.price, eligible = not reason, equipped = info.equipped == true,
                 reason = reason, group = group, score = score,
                 canBuy = not (category.kind == "reminder" or item.ownedOnly or item.isBasic or item.spell or item.requireOwned),
             }
@@ -215,7 +289,7 @@ function A.PlanCategory(category, catalog, ctx, prefs, profile)
     result.buy = pinnedBuy or (prefs.cheapest and cheapest) or result.buy
     local bestBag = result.bag
     result.bag = pinnedBag or result.bag
-    if category.slot and #result.rows == 0 then result.applicable = false end
+    if #result.rows == 0 then result.applicable = false end
     if category.key == "campfire" and not result.bag then
         local cooking = ctx.skill(COOKING)
         local required
@@ -226,18 +300,18 @@ function A.PlanCategory(category, catalog, ctx, prefs, profile)
             end
         end
         if cooking < 1 then
-            result.reminderReason = "Train Cooking to place a campfire kit."
+            result.reminderReason = L["Train Cooking to place a campfire kit."]
         elseif required then
-            result.reminderReason = "Requires Cooking " .. required .. "."
+            result.reminderReason = L["Requires Cooking %d."]:format(required)
         else
-            result.reminderReason = "Carry a campfire kit or use a nearby campsite."
+            result.reminderReason = L["Carry a campfire kit or use a nearby campsite."]
         end
     elseif category.key == "sleepingBag" and not result.bag then
         local row = result.rows[1]
         if row and row.item.maxLevel and ctx.level > row.item.maxLevel then
-            result.reminderReason = "Available through level " .. row.item.maxLevel .. "."
+            result.reminderReason = L["Available through level %d."]:format(row.item.maxLevel)
         else
-            result.reminderReason = "Requires Cozy Sleeping Bag in your bags."
+            result.reminderReason = L["Requires Cozy Sleeping Bag in your bags."]
         end
     end
     if category.kind == "reminder" then

@@ -104,11 +104,11 @@ local A = {}
 local function loadAddon(filename)
     assert(loadfile("AlwaysBuffed/" .. filename .. ".lua"))("AlwaysBuffed", A)
 end
-for _, filename in ipairs({"Catalog", "Categories", "Profiles", "Planner", "Theme", "Status", "Options"}) do
+for _, filename in ipairs({"Locale", "Catalog", "Categories", "Profiles", "Planner", "Theme", "Status", "Options"}) do
     loadAddon(filename)
 end
 A.db = {preferences = {}, showWheel = true, showBar = true, reminders = false,
-    barOrientation = "horizontal", mouseoverOnly = false, highlightMissing = false}
+    mouseoverOnly = false, highlightMissing = false}
 A.state = {class = "HUNTER", level = 32, categories = {}, profile = A.profiles.HUNTER[1]}
 A.ApplyClassLabels(A.state.class)
 local binding, previews, actionRefreshes, wheelRefreshes = nil, 0, 0, 0
@@ -132,7 +132,17 @@ function A.ToggleWheel() previews = previews + 1 return true end
 function A.RefreshActions() actionRefreshes = actionRefreshes + 1 end
 function A.RefreshWheel() wheelRefreshes = wheelRefreshes + 1 end
 local weapons, bagCounts = {[16] = "sharp"}, {[279981] = 2}
+function A.SetBarMode(mode)
+    A.db.barMode = mode
+    A.Update()
+end
 function A.Update()
+    local mode = A.db.barMode or "auto"
+    if mode == "auto" then
+        A.state.barProfession = weapons[16] == "fishingPole" and "fishing" or nil
+    else
+        A.state.barProfession = mode ~= "combat" and mode or nil
+    end
     if A.db.profile then
         A.state.profile = A.SelectProfile(A.profiles[A.state.class], A.db.profile, {})
     end
@@ -155,6 +165,12 @@ local function visibleItem(panel, name)
     for _, widget in ipairs(panel.itemWidgets) do
         if widget:IsShown() and widget.itemRow and widget.itemRow.name == name then return widget end
     end
+end
+local function shoppingShows(panel, key)
+    for _, widget in ipairs(panel.itemWidgets) do
+        if widget:IsShown() and widget.shopping and widget.category.key == key then return true end
+    end
+    return false
 end
 local function indexNavigation(panel)
     local index = {}
@@ -188,16 +204,17 @@ local panel = AlwaysBuffedOptionsPanel
 panel.scroll:SetHeight(230)
 local nav = indexNavigation(panel)
 equal(panel.heading:GetText(), "Shopping list", "shopping opens at launch")
-equal(panel.navigation[1].key .. "," .. panel.navigation[2].key .. "," .. panel.navigation[3].key,
-    "general,appearance,shopping", "fixed navigation remains above buff categories")
+equal(panel.navigation[1].key .. "," .. panel.navigation[2].key .. "," .. panel.navigation[3].key .. "," .. panel.navigation[4].key,
+    "general,appearance,shopping,professions", "profession controls are discoverable above buff categories")
 equal(sidebarOrder(panel, 4), "food,elixir,scrollAgility,scrollStamina", "Hunter starts with leveling staples and useful scrolls")
 equal(panel.heading.font, STANDARD_TEXT_FONT, "native glyph coverage for Korean")
 equal(panel.tableHeader.bags:GetText(), "In bags", "shopping bag count heading")
 equal(panel.tableHeader.price:GetText(), "Auction price", "shopping price heading")
 equal(nav.campfire.inScroll, true, "campfire belongs to the scrollable category list")
 equal(nav.sleepingBag.inScroll, true, "sleeping bag belongs to the scrollable category list")
-equal(panel.navigation[#panel.navigation - 1].key, "campfire", "campfire starts the last sidebar section")
-equal(panel.navigation[#panel.navigation].key, "sleepingBag", "sleeping bag ends the category list")
+equal(nav.campfire.offset < nav.sleepingBag.offset, true, "campfire and sleeping bag keep their reminder order")
+equal(nav.sleepingBag.offset < nav.fishingLure.offset, true, "profession categories follow regular sidebar sections")
+equal(nav.fishingLure.offset < nav.herbalismTea.offset, true, "profession categories follow their section order")
 equal(nav.imbue, nil, "Hunter has no class imbue page")
 equal(nav.imbueOffhand, nil, "Hunter has no off-hand class imbue page")
 equal(nav.scrollFamiliar, nil, "Hunter has no Mage familiar scroll page")
@@ -211,6 +228,66 @@ A.Update()
 equal(sidebarOrder(panel), hunterOrder, "inventory changes leave sidebar order unchanged")
 bagCounts[2680] = nil
 A.Update()
+
+equal(shoppingShows(panel, "fishingLure"), false, "combat shopping keeps profession purchases out of the list")
+click(nav.professions)
+local professionPage = panel.professions
+equal(panel.heading:GetText(), "Professions", "fixed navigation opens profession settings")
+equal(professionPage.modes.auto.selected, true, "automatic is the default bar mode")
+equal(professionPage.activeBar:GetText(), "Active bar: Combat", "settings show the active bar")
+equal(professionPage.modes.comprehension, nil, "class-specific bar is unavailable to a Hunter")
+equal(professionPage.links.comprehensionScroll, nil, "class-specific category is absent from the Hunter hub")
+click(professionPage.links.fishingLure)
+equal(panel.heading:GetText(), "Fishing Lure", "profession link opens the regular category")
+equal(panel.subheading:GetText(), "Shown on the Fishing bar.", "inactive profession remains browsable with context")
+equal(panel.category.track.checked, true, "profession categories are tracked by default")
+local lureShortcut = panel.category.shortcut
+equal(lureShortcut.status:GetText(), "Use this category’s selected item or spell while its profession bar is active.",
+    "profession shortcuts explain when they can be used")
+click(lureShortcut.pick)
+panel.capture:Fire("OnKeyDown", "L")
+equal(A.GetBuffBinding("fishingLure"), "ALT-L", "profession shortcuts can be set outside their bar mode")
+click(lureShortcut.clear)
+click(panel.category.track)
+equal(nav.fishingLure.track.checked, false, "profession tracking can be turned off outside its mode")
+click(panel.category.restore)
+equal(nav.fishingLure.track.checked, true, "restoring defaults re-enables the profession category")
+local lure = A.catalog.fishingLure[1]
+click(panel.category.showUnusable)
+panel.category.search:Type(lure.name)
+click(assert(visibleItem(panel, lure.name)).action)
+equal(A.Prefs("fishingLure").pin, lure.id, "profession search and pin work outside its mode")
+click(panel.category.clear)
+equal(A.Prefs("fishingLure").pin, nil, "automatic selection clears the profession pin")
+click(panel.category.showUnusable)
+
+click(nav.professions)
+click(professionPage.modes.fishing)
+equal(A.db.barMode, "fishing", "specific profession mode can be selected")
+equal(professionPage.activeBar:GetText(), "Active bar: Fishing", "selector shows the active profession")
+click(professionPage.links.fishingLure)
+equal(panel.subheading:GetText(), "Requires a fishing pole", "lures explain their equipment requirement")
+weapons[16] = "fishingPole"
+A.Update()
+click(nav.shopping)
+equal(shoppingShows(panel, "fishingLure"), true, "fishing shopping shows lure recommendations")
+equal(shoppingShows(panel, "food"), false, "fishing shopping omits combat recommendations")
+click(nav.professions)
+click(professionPage.modes.herbalism)
+equal(professionPage.activeBar:GetText(), "Active bar: Herbalism", "a profession without an equipment trigger is selectable")
+click(professionPage.modes.mining)
+equal(professionPage.activeBar:GetText(), "Active bar: Mining", "mining can be selected directly")
+weapons[16] = "sharp"
+click(professionPage.modes.auto)
+weapons[16] = "fishingPole"
+A.Update()
+equal(professionPage.modes.auto.selected, true, "an equipment change preserves the automatic preference")
+equal(professionPage.activeBar:GetText(), "Active bar: Fishing", "automatic displays the equipped profession bar")
+click(professionPage.modes.combat)
+equal(professionPage.activeBar:GetText(), "Active bar: Combat", "manual combat overrides fishing equipment")
+weapons[16] = "sharp"
+click(professionPage.modes.auto)
+click(nav.shopping)
 
 panel.sidebarScroll:SetHeight(260)
 panel.sidebarScroll.updateRange()
@@ -473,13 +550,15 @@ click(direct.pick)
 click(nav.general)
 panel.capture:Fire("OnKeyDown", "R")
 equal(A.GetBuffBinding("campfire"), nil, "navigating away cancels pending capture")
-equal(panel.general.orientations.horizontal.selected, true, "horizontal is the default bar orientation")
-click(panel.general.orientations.vertical)
-equal(A.db.barOrientation, "vertical", "vertical orientation is saved")
-equal(panel.general.orientations.vertical.selected, true, "vertical orientation is shown as selected")
-equal(panel.general.orientations.horizontal.selected, false, "orientation controls are mutually exclusive")
-click(panel.general.orientations.horizontal)
-equal(A.db.barOrientation, "horizontal", "horizontal orientation can be restored")
+local directions = panel.general.directions
+equal(directions.right.selected, true, "the bar grows right by default")
+for _, direction in ipairs({"left", "up", "down", "right"}) do
+    click(directions[direction])
+    equal(A.db.barDirection, direction, "the selected growth direction is saved")
+    for key, control in pairs(directions) do
+        equal(control.selected, key == direction, "growth direction controls are mutually exclusive")
+    end
+end
 equal(panel.general.checks.mouseoverOnly.checked, false, "mouseover-only visibility is off by default")
 click(panel.general.checks.mouseoverOnly)
 equal(A.db.mouseoverOnly, true, "mouseover-only visibility is saved")
@@ -543,6 +622,10 @@ equal(panel.category.reminder.title.tint[1], A.theme.colors.gold[1], "previously
 local startingSize = panel.heading.fontSize
 page.scales.fontScale:SetValue(1.25, true)
 equal(panel.heading.fontSize > startingSize, true, "font size updates live")
+local wheelSetting = panel.general.checks.showWheel
+local description = wheelSetting.description
+local descriptionBottom = -description.points.TOPLEFT[2] + description:GetHeight()
+equal(descriptionBottom <= wheelSetting:GetHeight(), true, "two lines of translated help fit at maximum text size")
 local beforeBar, beforeWheel = actionRefreshes, wheelRefreshes
 page.scales.barScale:SetValue(1.50, true)
 equal(A.db.barScale, 1.50, "bar size persists")
@@ -592,10 +675,48 @@ equal(mageNav.scrollFamiliar ~= nil, true, "Mage familiar scroll category is vis
 equal(mageNav.imbue ~= nil, true, "Mage weapon scroll category is visible")
 equal(sidebarOrder(AlwaysBuffedOptionsPanel, 7), "food,elixir,scrollFamiliar,imbue,elixirRegen,scrollIntellect,weapon",
     "Mage places class buffs, mana support and intellect near the top")
+click(mageNav.professions)
+local mageProfessions = AlwaysBuffedOptionsPanel.professions
+equal(mageProfessions.modes.comprehension ~= nil, true, "Mage can choose the class-specific profession mode")
+equal(mageProfessions.links.comprehensionScroll ~= nil, true, "Mage can browse its class-specific profession category")
+click(mageProfessions.modes.comprehension)
+equal(mageProfessions.activeBar:GetText(), "Active bar: Comprehension", "Mage can activate the class-specific bar")
+click(mageProfessions.modes.auto)
 
 openAs("PRIEST")
 A.state.profile = A.profiles.PRIEST[3]
 A.Update()
 equal(sidebarOrder(AlwaysBuffedOptionsPanel, 6), "food,elixir,elixirRegen,scrollIntellect,scrollSpirit,weapon",
     "Holy Priest puts both recommended spellcasting scrolls near the top")
+
+A.ToggleOptions()
+function GetLocale() return "ruRU" end
+for _, filename in ipairs({ "Locale", "Locales/ruRU", "Catalog", "Categories", "Profiles", "Planner", "Theme", "Status", "Options" }) do
+    loadAddon(filename)
+end
+A.state.class, A.state.profile = "HUNTER", A.profiles.HUNTER[1]
+A.ApplyClassLabels(A.state.class)
+A.Update()
+A.ToggleOptions()
+panel = AlwaysBuffedOptionsPanel
+nav = indexNavigation(panel)
+equal(panel.heading:GetText(), "Список покупок", "Russian shopping heading")
+equal(nav.food.title:GetText(), "Еда", "Russian category navigation")
+equal(panel.heading.font, STANDARD_TEXT_FONT, "native glyph coverage for Russian")
+
+local tooltipTitle, tooltipDetail
+function GameTooltip:SetText(text) tooltipTitle = text end
+function GameTooltip:AddLine(text) tooltipDetail = text end
+nav.food.title.IsTruncated = function() return true end
+nav.food:Fire("OnEnter")
+equal(tooltipTitle, "Еда", "clipped navigation exposes the complete label")
+click(nav.food)
+local showUnusable = panel.category.showUnusable
+showUnusable.title.IsTruncated = function() return true end
+showUnusable:Fire("OnEnter")
+equal(tooltipTitle, showUnusable.title:GetText(), "clipped checkbox exposes the complete label")
+equal(tooltipDetail, showUnusable.hint, "clipped checkbox keeps the existing help text")
+panel.category.search:Type("Mithril Head Trout")
+equal(panel.category.searchRow.count:GetText(), "Результатов: 1", "Russian search result count")
+
 print(("%d options checks passed"):format(checks))

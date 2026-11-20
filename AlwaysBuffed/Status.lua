@@ -1,4 +1,5 @@
 local _, A = ...
+local L = A.L
 
 -- A state color over item artwork. The class accent remains the selection color.
 A.activeBorderColor = { 1, 0.80, 0.22 }
@@ -7,17 +8,17 @@ function A.BuffDuration(seconds, compact)
     seconds = math.max(0, math.ceil(seconds))
     if seconds >= 3600 then
         local hours = math.floor(seconds / 3600)
-        if compact then return math.ceil(seconds / 3600) .. "h" end
-        if seconds % 3600 < 60 then return hours .. "h" end
-        return ("%dh %02dm"):format(hours, math.floor(seconds / 60) % 60)
+        if compact then return L["%dh"]:format(math.ceil(seconds / 3600)) end
+        if seconds % 3600 < 60 then return L["%dh"]:format(hours) end
+        return L["%dh %02dm"]:format(hours, math.floor(seconds / 60) % 60)
     end
     if seconds >= 60 then
         local minutes = math.floor(seconds / 60)
-        if compact then return math.ceil(seconds / 60) .. "m" end
-        if seconds % 60 == 0 then return minutes .. "m" end
-        return ("%dm %02ds"):format(minutes, seconds % 60)
+        if compact then return L["%dm"]:format(math.ceil(seconds / 60)) end
+        if seconds % 60 == 0 then return L["%dm"]:format(minutes) end
+        return L["%dm %02ds"]:format(minutes, seconds % 60)
     end
-    return seconds .. "s"
+    return L["%ds"]:format(seconds)
 end
 
 function A.EffectIsCurrent(name, expires, now)
@@ -36,17 +37,17 @@ end
 
 function A.ReminderStatus(category, state, now)
     if A.EffectIsCurrent(state.active, state.expires, now) then
-        local detail = state.expires and state.expires > 0 and A.BuffDuration(state.expires - now) .. " left" or "Active"
-        if state.violetCamp then detail = "Violet · " .. detail end
+        local detail = state.expires and state.expires > 0 and L["%s left"]:format(A.BuffDuration(state.expires - now)) or L["Active"]
+        if state.violetCamp then detail = L["Violet · %s"]:format(detail) end
         return state.active, detail, "active", state.activeIcon
     end
     if A.EffectIsCurrent(state.pending, state.pendingExpires, now) then
         local detail = state.pendingExpires and state.pendingExpires > 0 and
-            ("Settling · " .. A.BuffDuration(state.pendingExpires - now, true)) or "Settling in"
+            L["Settling · %s"]:format(A.BuffDuration(state.pendingExpires - now, true)) or L["Settling in"]
         return state.pending, detail, "pending", state.pendingIcon
     end
     local _, _, readyAt = A.ReminderCooldown(category, state.bag, now)
-    if readyAt then return category.label, "Ready in " .. A.BuffDuration(readyAt - now), "cooldown" end
-    if state.bag then return category.label, "Ready to use", "ready" end
-    return category.label, category.key == "campfire" and "Find a campfire" or "Not in bags", "missing"
+    if readyAt then return category.label, L["Ready in %s"]:format(A.BuffDuration(readyAt - now)), "cooldown" end
+    if state.bag then return category.label, L["Ready to use"], "ready" end
+    return category.label, category.key == "campfire" and L["Find a campfire"] or L["Not in bags"], "missing"
 end

@@ -1,6 +1,6 @@
 -- Native bindings are modeled here; the real secure action attributes come from Actions.lua.
 local A = { theme = { colors = {} } }
-for _, name in ipairs({"Catalog", "Categories", "Status", "Actions", "BuffBindings"}) do
+for _, name in ipairs({"Locale", "Catalog", "Categories", "Status", "Actions", "BuffBindings"}) do
     assert(loadfile("AlwaysBuffed/" .. name .. ".lua"))("AlwaysBuffed", A)
 end
 A.ApplyClassLabels("ROGUE")
@@ -27,7 +27,7 @@ end
 assert(xml:find('name="ALWAYSBUFFED_TOGGLE_WHEEL"', 1, true))
 assert(xml:match('<Binding name="' .. BAR .. '"[^>]*/>'), "native bar shortcut is registered for secure CLICK routing")
 local _, total = xml:gsub('<Binding name=', '')
-assert(total == 30 and total == #A.categories + 2, "class categories, wheel and bar bindings are registered")
+assert(total == #A.categories + 2, "class and profession categories, wheel and bar bindings are registered")
 assert(not xml:find(RETIRED, 1, true), "retired Buff Drinks command is absent from native settings")
 local activeSet, savedSet = 2
 local sets = {
@@ -115,7 +115,7 @@ local function press(chord, down)
     local name = GetBindingAction(chord, true):match("^CLICK ([^:]+)")
     local button = name and _G[name]
     if button and button.shown and button.edge == (down and "AnyDown" or "AnyUp") then
-        return button.attrs["*item1"] or button.attrs["*spell1"], button.attrs["*target-slot1"]
+        return button.attrs["*item1"] or button.attrs["*spell1"], button.attrs["*target-slot1"], button.attrs["*unit1"]
     end
 end
 
@@ -146,6 +146,7 @@ assert(BINDING_NAME_ALWAYSBUFFED_TOGGLE_BAR == "Toggle buff bar")
 assert(A.GetBarToggleBinding() == nil, "bar toggle is unbound by default")
 assert(BINDING_NAME_ALWAYSBUFFED_USE_IMBUEOFFHAND == "Use Off-Hand Poison")
 assert(BINDING_NAME_ALWAYSBUFFED_USE_WEAPON == "Use Main-Hand Stones & Oils")
+assert(BINDING_NAME_ALWAYSBUFFED_USE_FISHINGLURE == "Use Fishing Lure")
 assert(A.GetBuffBinding("food") == "F")
 assert(press("F", true) == nil and press("F", false) == "item:787")
 local sharpened, slot = press("SHIFT-O", false)
@@ -232,5 +233,26 @@ assert(press("O", false) == nil and press("SHIFT-O", false) == nil)
 assert(A.SetBuffBinding("sleepingBag", "ALT-MOUSEWHEELUP"))
 assert(press("ALT-MOUSEWHEELUP", true) == "item:211527")
 assert(press("ALT-MOUSEWHEELUP", false) == nil)
+carry("fishingLure", 6532)
+assert(A.SetBuffBinding("fishingLure", "F10"))
+assert(not press("F10", false), "profession shortcut is disarmed on the combat loadout")
+A.state.barProfession = "fishing"
+A.RefreshBuffBindings()
+local lure, lureSlot = press("F10", false)
+assert(lure == "item:6532" and lureSlot == 16)
+carry("fishingCoin", 286732)
+assert(A.SetBuffBinding("fishingCoin", "F11"))
+local coin, coinSlot, coinUnit = press("F11", false)
+assert(coin == "item:286732" and not coinSlot and not coinUnit, "the aimed fishing coin has no preset target")
+assert(press("H", false) == "item:4592", "the ordinary food shortcut still works on a profession loadout")
+states.fishingLure.applicable = false
+A.RefreshBuffBindings()
+assert(not press("F10", false), "the lure is disarmed when the plan loses a compatible pole")
+carry("fishingLure", 6532)
+A.RefreshBuffBindings()
+assert(press("F10", false) == "item:6532")
+A.state.barProfession = nil
+A.RefreshBuffBindings()
+assert(A.GetBuffBinding("fishingLure") == "F10" and not press("F10", false), "switching clears the action and keeps the native chord")
 assert(A.SetBuffBinding("food", nil) and not A.GetBuffBinding("food") and press("H", false) == nil)
 print("Direct buff bindings, native bar toggle, conflict checks, cached actions, and hand targets passed.")

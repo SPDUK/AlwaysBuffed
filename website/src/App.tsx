@@ -256,8 +256,8 @@ function Facts() {
     <div className="facts">
       <dl className="container facts-inner">
         {[
-          ['book', '346', 'Items & spells'],
-          ['layers', '28', 'Buff categories'],
+          ['book', '359', 'Items & spells'],
+          ['layers', '36', 'Buff categories'],
           ['compass', '28', 'Spec presets'],
         ].map(([icon, number, name]) => (
           <div key={name}>
@@ -345,6 +345,29 @@ function FieldGuide({ open }: { open: (page: GuidePage) => void }) {
 
 const questions = [
   [
+    'How do I switch to Fishing or another profession?',
+    <>Type <code>/alwaysbuffed</code> or <code>/ab</code> and select <strong>Professions</strong>.
+      In <strong>Automatic</strong> mode, equipping any fishing pole switches your bar, wheel, and shopping
+      list to Fishing. Putting it away restores Combat. Track lures such as Nightcrawlers, fishing food,
+      the Shiny Silver Coin, and Fishing Rack or Hut bonuses. You can also select Herbalism for Goldthorn
+      Tea and hidden herbs, Mining for hidden nodes, or Mage Comprehension for its skill scroll.</>,
+  ],
+  [
+    'Can other gear switch me to the Fishing bar?',
+    <>Type <code>/ab fishgear</code> followed by an item link or ID. Equipping that item selects Fishing
+      in <strong>Automatic</strong> mode. Use <code>/ab fishgear clear</code> to remove it.
+      Both commands also work with <code>/alwaysbuffed</code>. Applying a lure requires a fishing pole.</>,
+  ],
+  [
+    'Which way can the bar expand?',
+    <>In <strong>General → Icons grow</strong>, choose Left, Right, Up, or Down. Click the grip to fold
+      the icons back into the same spot.</>,
+  ],
+  [
+    'Which languages does the addon support?',
+    'AlwaysBuffed follows your WoW client language. It supports English, German, Spanish (Spain and Latin America), French, Italian, Korean, Brazilian Portuguese, Russian, Simplified Chinese, and Traditional Chinese.',
+  ],
+  [
     'Which version of WoW does AlwaysBuffed support?',
     'AlwaysBuffed is built for World of Warcraft: Forever. Install the package ending in -forever.zip in your Forever client.',
   ],
@@ -360,7 +383,7 @@ const questions = [
     'Can I use the buffs in combat?',
     'The buff bar keeps the actions it prepared before combat, subject to each item’s use restrictions. The wheel opens outside combat. Secure assignments refresh when combat ends.',
   ],
-];
+] as const;
 function Install() {
   return (
     <section id="install" className="install-panel" aria-labelledby="install-heading">
@@ -394,8 +417,9 @@ function Install() {
           <li>
             <strong>Open your first recommendation</strong>
             <p>
-              Enable AlwaysBuffed at character select, enter the world, then type <code>/ab</code> and open{' '}
-              <b>Food</b>.
+              Enable AlwaysBuffed at character select. In game, type <code>/alwaysbuffed</code> or{' '}
+              <code>/ab</code> in chat. Choose <b>Food</b> for your first recommendation or{' '}
+              <b>Professions</b> to set up a gathering bar.
             </p>
           </li>
         </ol>

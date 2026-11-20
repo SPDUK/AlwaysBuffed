@@ -4,10 +4,12 @@ local G = A.game
 local ready, queued, needPlan, auctionSubscribed, talentPoints
 local announcedLevel
 local reminderTimer, reminderDeadline
+local gearTimer, gearDeadline
 local combatAuras, combatWeapons, removedAuras = false, false, {}
 local defaults = {profile = "auto", showBar = true, showWheel = true, showMinimap = true,
     locked = false, reminders = false, collapsed = false, highlightMissing = false,
-    barOrientation = "horizontal", mouseoverOnly = false, barScale = 1, wheelScale = 1, fontScale = 1}
+    mouseoverOnly = false, barScale = 1, wheelScale = 1, fontScale = 1, barMode = "auto"}
+local barDirections = {left = true, right = true, up = true, down = true}
 
 local function paint()
     if ready then
@@ -97,6 +99,44 @@ end
 local effectFields = {"active", "expires", "activeIcon", "activeSpellID", "activeStacks", "activeInstanceID",
     "violetCamp", "pending", "pendingExpires", "pendingIcon", "pendingSpellID", "pendingInstanceID"}
 
+local function validBarMode(mode, class)
+    if mode == "auto" or mode == "combat" then return true end
+    for _, profession in ipairs(A.professions) do
+        if profession.key == mode and (not profession.class or profession.class == class) then return true end
+    end
+    return false
+end
+
+function A.SetBarMode(mode)
+    if validBarMode(mode, A.state.class) then
+        A.db.barMode = mode
+        A.Update()
+    end
+end
+
+local function updateBarMode(state, ctx)
+    local mode = A.db.barMode
+    if mode ~= "auto" then
+        state.barProfession = mode ~= "combat" and mode or nil
+    elseif ctx.weapons[16] == "fishingPole" or G.HasFishingGear(A.db.fishingGearItemID) then
+        state.barProfession = "fishing"
+    elseif ctx.mainHandKnown or state.barProfession ~= "fishing" then
+        state.barProfession = nil
+    end
+end
+
+local function scheduleGearReady(deadline)
+    if gearDeadline == deadline then return end
+    if gearTimer then gearTimer:Cancel() end
+    gearDeadline, gearTimer = deadline, nil
+    if deadline then
+        gearTimer = C_Timer.NewTimer(math.max(0, deadline - GetTime()), function()
+            gearTimer, gearDeadline = nil, nil
+            A.Update()
+        end)
+    end
+end
+
 function A.Update()
     local state = A.state
     local level = UnitLevel("player")
@@ -111,6 +151,7 @@ function A.Update()
         return
     end
     local ctx = G.Context(state.class, state.level, A.db.reminders)
+    updateBarMode(state, ctx)
     for _, category in ipairs(A.categories) do
         local catalog = A.catalog[category.key]
         if category.kind == "food" then catalog = G.FoodWithBagFallback(catalog) end
@@ -123,6 +164,8 @@ function A.Update()
         end
         state.categories[category.key] = plan
     end
+    local lure = state.categories.fishingLure
+    scheduleGearReady(lure and lure.cooldownEnds)
     effects(true, true)
     paint()
 end
@@ -169,7 +212,7 @@ local function registerSettings()
     local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     button:SetSize(180, 28)
     button:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -20)
-    button:SetText("Open AlwaysBuffed")
+    button:SetText(A.L["Open AlwaysBuffed"])
     button:SetScript("OnClick", function()
         if SettingsPanel and SettingsPanel:IsShown() then HideUIPanel(SettingsPanel) end
         A.ToggleOptions()
@@ -205,13 +248,17 @@ local function login()
     for key, value in pairs(defaults) do
         if type(A.db[key]) ~= type(value) then A.db[key] = value end
     end
-    if A.db.barOrientation ~= "vertical" then A.db.barOrientation = "horizontal" end
+    if not barDirections[A.db.barDirection] then A.db.barDirection = nil end
+    if A.db.barOrientation ~= "horizontal" and A.db.barOrientation ~= "vertical" then A.db.barOrientation = nil end
     for key, bounds in pairs({barScale={0.75, 1.50}, wheelScale={0.75, 1.50}, fontScale={0.85, 1.25}}) do
         A.db[key] = math.max(bounds[1], math.min(bounds[2], A.db[key]))
     end
     if type(A.db.preferences) ~= "table" then A.db.preferences = {} end
     migratePreferences(A.db.preferences)
     local _, class = UnitClass("player")
+    if not validBarMode(A.db.barMode, class) then A.db.barMode = "auto" end
+    local id = A.db.fishingGearItemID
+    if type(id) ~= "number" or id < 1 or id ~= math.floor(id) then A.db.fishingGearItemID = nil end
     A.state = {class = class, categories = {}}
     A.ApplyClassLabels(class)
     A.theme.Refresh()
@@ -227,7 +274,21 @@ end
 local function slash(message)
     if not ready then return end
     local command = strtrim(message or ""):lower()
-    if command == "wheel" then
+    if command:match("^fishgear%s") or command == "fishgear" then
+        local arg = strtrim(command:sub(9))
+        local id = tonumber(arg:match("item:(%d+)") or arg:match("^(%d+)$"))
+        if arg == "clear" then
+            A.db.fishingGearItemID = nil
+            print(A.L["AlwaysBuffed: extra fishing gear cleared."])
+        elseif id and id > 0 then
+            A.db.fishingGearItemID = id
+            print(A.L["AlwaysBuffed: equipping item %d will select the fishing bar in Automatic mode."]:format(id))
+        else
+            print(A.L["Use /ab fishgear followed by an item link or ID, or /ab fishgear clear."])
+            return
+        end
+        A.Update()
+    elseif command == "wheel" then
         A.ToggleWheel()
     elseif command == "unlock" or command == "lock" then
         A.db.locked = command == "lock"
@@ -261,6 +322,11 @@ events:SetScript("OnEvent", function(_, event, arg, success)
             if arg == "player" then queue(true, false, true) end
         elseif event == "PLAYER_EQUIPMENT_CHANGED" then
             queue(true, false, arg == 16 or arg == 17)
+        elseif event == "BAG_UPDATE_COOLDOWN" then
+            local lure = A.state.categories.fishingLure
+            if not InCombatLockdown() and lure and lure.equippedSlot and G.EquipmentCooldown(lure.equippedSlot) ~= lure.cooldownEnds then
+                queue(true)
+            end
         elseif event == "ITEM_DATA_LOAD_RESULT" then
             if G.ItemArrived(arg) and success then queue(true) end
         else
@@ -272,7 +338,7 @@ events:SetScript("OnEvent", function(_, event, arg, success)
         end
     end
 end)
-for _, event in ipairs({"ADDON_LOADED", "PLAYER_LOGIN", "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED",
+for _, event in ipairs({"ADDON_LOADED", "PLAYER_LOGIN", "BAG_UPDATE_DELAYED", "BAG_UPDATE_COOLDOWN", "PLAYER_EQUIPMENT_CHANGED",
     "PLAYER_LEVEL_UP", "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "SPELLS_CHANGED", "SKILL_LINES_CHANGED",
     "TRAIT_CONFIG_UPDATED", "ACTIVE_COMBAT_CONFIG_CHANGED", "PLAYER_TALENT_UPDATE", "ITEM_DATA_LOAD_RESULT",
     "AUCTION_HOUSE_CLOSED", "DISPLAY_SIZE_CHANGED", "UI_SCALE_CHANGED"}) do

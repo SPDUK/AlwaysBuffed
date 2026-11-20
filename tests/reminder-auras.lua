@@ -58,7 +58,7 @@ local function advance(seconds)
 end
 
 local A = {}
-for _, file in ipairs({"Catalog", "Categories", "Profiles", "Planner", "Game", "Core"}) do
+for _, file in ipairs({"Locale", "Catalog", "Categories", "Profiles", "Planner", "Game", "Core"}) do
     assert(loadfile("AlwaysBuffed/" .. file .. ".lua"))("AlwaysBuffed", A)
 end
 local control = {SetPoint = noop, SetText = noop, SetSize = noop, SetScript = noop}

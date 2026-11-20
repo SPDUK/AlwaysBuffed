@@ -29,4 +29,12 @@
     <Binding name="ALWAYSBUFFED_USE_IMBUEOFFHAND" category="ADDONS" />
     <Binding name="ALWAYSBUFFED_USE_CAMPFIRE" category="ADDONS" />
     <Binding name="ALWAYSBUFFED_USE_SLEEPINGBAG" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_FISHINGLURE" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_FISHINGFOOD" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_FISHINGCOIN" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_FISHINGCAMP" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_HERBALISMTEA" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_HERBALISMDRAUGHT" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_MININGDRAUGHT" category="ADDONS" />
+    <Binding name="ALWAYSBUFFED_USE_COMPREHENSIONSCROLL" category="ADDONS" />
 </Bindings>

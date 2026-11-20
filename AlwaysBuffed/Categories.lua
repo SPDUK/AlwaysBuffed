@@ -1,22 +1,43 @@
 local _, A = ...
+local L = A.L
 
+A.professions = {
+    {key = "fishing", label = L["Fishing"]},
+    {key = "herbalism", label = L["Herbalism"]},
+    {key = "mining", label = L["Mining"]},
+    {key = "comprehension", label = L["Comprehension"], class = "MAGE"},
+}
+
+function A.BarModeLabel(mode)
+    if mode == "auto" then return L["Automatic"] end
+    for _, profession in ipairs(A.professions) do
+        if profession.key == mode then return profession.label end
+    end
+    return L["Combat"]
+end
+
+function A.OnActiveBar(category)
+    return category.profession == A.state.barProfession
+end
+
+local generic = { L["Main-Hand Weapon Imbue"], L["Off-Hand Weapon Imbue"], L["Main-Hand Imbue"], L["Off-Hand Imbue"] }
 local weaponBuffs = {
-    ROGUE = { "Poison", "Poison" },
-    SHAMAN = { "Weapon Imbue", "Imbue" },
-    MAGE = { "Weapon Scroll", "Scroll" },
-    WARLOCK = { "Weapon Stone", "Stone" },
+    ROGUE = { L["Main-Hand Poison"], L["Off-Hand Poison"] },
+    MAGE = { L["Main-Hand Weapon Scroll"], L["Off-Hand Weapon Scroll"], L["Main-Hand Scroll"], L["Off-Hand Scroll"] },
+    WARLOCK = { L["Main-Hand Weapon Stone"], L["Off-Hand Weapon Stone"], L["Main-Hand Stone"], L["Off-Hand Stone"] },
 }
 
 function A.ApplyClassLabels(class)
-    local family = weaponBuffs[class] or { "Weapon Imbue", "Imbue" }
+    local family = weaponBuffs[class] or generic
     for _, category in ipairs(A.categories) do
-        local hand = category.slot == 17 and "Off-Hand " or "Main-Hand "
+        local offHand = category.slot == 17
         if category.slotType == "imbue" then
-            category.label = hand .. family[1]
-            category.shortLabel = hand .. family[2]
-        elseif category.kind == "weapon" and category.slot then
-            category.label = hand .. "Stones & Oils"
-            category.shortLabel = (category.slot == 17 and "OH" or "MH") .. " Stones & Oils"
+            local hand = offHand and 2 or 1
+            category.label = family[hand]
+            category.shortLabel = family[hand + 2] or category.label
+        elseif category.kind == "weapon" and category.slot and not category.profession then
+            category.label = offHand and L["Off-Hand Stones & Oils"] or L["Main-Hand Stones & Oils"]
+            category.shortLabel = offHand and L["OH Stones & Oils"] or L["MH Stones & Oils"]
         end
     end
 end

@@ -1,4 +1,5 @@
 local _, A = ...
+local L = A.L
 
 local theme = A.theme
 local color = theme.colors
@@ -24,16 +25,16 @@ local modifierKeys = {
     ALT = true,
 }
 local navigationLabels = {
-    elixirRegen = "Regen Elixir",
-    scrollFamiliar = "Familiar Scroll",
-    sleepingBag = "Sleeping Bag",
+    elixirRegen = L["Regen Elixir"],
+    scrollFamiliar = L["Familiar Scroll"],
+    sleepingBag = L["Sleeping Bag"],
 }
 local sidebarSections = {
-    { "leveling", "Leveling staples" },
-    { "spec", "For your spec" },
-    { "other", "Other buffs" },
-    { "situational", "Situational" },
-    { "reminders", "Reminders" },
+    { "leveling", L["Leveling staples"] },
+    { "spec", L["For your spec"] },
+    { "other", L["Other buffs"] },
+    { "situational", L["Situational"] },
+    { "reminders", L["Reminders"] },
 }
 local situationalBuffs = {
     flask = true, elixirBlastedLands = true, elixirArthas = true, elixirResistance = true,
@@ -41,9 +42,9 @@ local situationalBuffs = {
     draughtWaterWalking = true, draughtDetection = true,
 }
 local rankingGroups = {
-    { "best", "Best for your spec" },
-    { "utility", "Utility" },
-    { "notUseful", "Not useful" },
+    { "best", L["Best for your spec"] },
+    { "utility", L["Utility"] },
+    { "notUseful", L["Not useful"] },
 }
 
 local function navigationLabel(category)
@@ -111,12 +112,19 @@ local function hideTooltip(owner)
     end
 end
 
+local function truncatedText(text)
+    return text and text.IsTruncated and text:IsTruncated() and text:GetText()
+end
+
 local function showHint(owner)
-    if not owner.hint then
-        return
-    end
+    local title = truncatedText(owner.title)
+    local hint = owner.hint or truncatedText(owner.description)
+    if not title and not hint then return end
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    GameTooltip:SetText(owner.hint, 1, 1, 1, 1, true)
+    GameTooltip:SetText(title or hint, 1, 1, 1, 1, true)
+    if title and hint then
+        GameTooltip:AddLine(hint, color.muted[1], color.muted[2], color.muted[3], true)
+    end
     GameTooltip:Show()
 end
 
@@ -156,8 +164,8 @@ local function button(parent, widthPixels, height, text, onClick)
     btn.face:SetPoint("TOPLEFT", 1, -1)
     btn.face:SetPoint("BOTTOMRIGHT", -1, 1)
     btn.title = label(btn, 14, color.text, "CENTER", true)
-    btn.title:SetPoint("LEFT", 5, 0)
-    btn.title:SetPoint("RIGHT", -5, 0)
+    btn.title:SetPoint("LEFT", 4, 0)
+    btn.title:SetPoint("RIGHT", -4, 0)
     btn.title:SetText(text)
     btn:SetScript("OnClick", onClick)
     btn:SetScript("OnEnter", function(self)
@@ -310,7 +318,7 @@ local function tracked(category)
     if pref ~= nil then
         return pref
     end
-    return A.state.profile.tracked[category.key] and true or false
+    return A.DefaultTracked(category, A.state.profile)
 end
 
 local function toggleTrack(category)
@@ -324,20 +332,20 @@ end
 
 local function activeText(state)
     local now = GetTime()
-    if not A.EffectIsCurrent(state.active, state.expires, now) then return "Missing" end
+    if not A.EffectIsCurrent(state.active, state.expires, now) then return L["Missing"] end
     if not state.expires or state.expires <= 0 then return state.active end
-    return state.active .. "  ·  " .. A.BuffDuration(state.expires - now) .. " left"
+    return L["%s  ·  %s left"]:format(state.active, A.BuffDuration(state.expires - now))
 end
 
 local function paintReminder(card, category, state, now)
     local name, detail, mode = A.ReminderStatus(category, state, now)
     if mode == "ready" or mode == "missing" then
         if category.key == "campfire" then
-            name = state.bag and "Campfire kit ready" or "Use a nearby campsite"
-            detail = "Sit or craft nearby for one minute to gain Camp Benefits. You can share another player’s campfire."
+            name = state.bag and L["Campfire kit ready"] or L["Use a nearby campsite"]
+            detail = L["Sit or craft nearby for one minute to gain Camp Benefits. You can share another player’s campfire."]
         elseif category.key == "sleepingBag" then
-            name = state.reminderReason or (state.bag and "Sleeping bag ready" or "Requires Cozy Sleeping Bag in your bags.")
-            detail = "Rest inside for up to three minutes to gain up to 3% bonus experience."
+            name = state.reminderReason or (state.bag and L["Sleeping bag ready"] or L["Requires Cozy Sleeping Bag in your bags."])
+            detail = L["Rest inside for up to three minutes to gain up to 3% bonus experience."]
         end
     end
     card.title:SetText(name)
@@ -354,14 +362,14 @@ end
 local function saveShortcut(frame, shortcut, key)
     stopCapture(frame)
     local success, reason = shortcut.setBinding(key)
-    frame.bindingError = success == false and (reason or "Could not update this shortcut.") or nil
+    frame.bindingError = success == false and (reason or L["Could not update this shortcut."]) or nil
     frame.bindingErrorTarget = frame.bindingError and shortcut or nil
     A.RefreshOptions()
 end
 
 local function buildShortcut(frame, parent, getBinding, setBinding, status)
     local shortcut = { getBinding = getBinding, setBinding = setBinding, status = status }
-    shortcut.pick = button(parent, 158, 31, "Set shortcut", function()
+    shortcut.pick = button(parent, 158, 31, L["Set shortcut"], function()
         if InCombatLockdown() then return end
         if frame.bindingTarget == shortcut then
             stopCapture(frame)
@@ -374,7 +382,7 @@ local function buildShortcut(frame, parent, getBinding, setBinding, status)
         frame.bindingError = nil
         A.RefreshOptions()
     end)
-    shortcut.clear = button(parent, 62, 31, "Clear", function()
+    shortcut.clear = button(parent, 70, 31, L["Clear"], function()
         if not InCombatLockdown() then saveShortcut(frame, shortcut, nil) end
     end)
     shortcut.clear:SetPoint("LEFT", shortcut.pick, "RIGHT", 7, 0)
@@ -387,13 +395,13 @@ local function paintShortcut(frame, shortcut, name, defaultStatus)
     local editable = not InCombatLockdown()
     local bindingText = binding and GetBindingText(binding)
     local errorText = frame.bindingErrorTarget == shortcut and frame.bindingError or nil
-    shortcut.pick.title:SetText(listening and "Cancel" or bindingText or "Set shortcut")
-    shortcut.pick.hint = bindingText and ("Change %s shortcut (%s)"):format(name, bindingText) or ("Bind %s"):format(name)
+    shortcut.pick.title:SetText(listening and L["Cancel"] or bindingText or L["Set shortcut"])
+    shortcut.pick.hint = bindingText and L["Change %s shortcut (%s)"]:format(name, bindingText) or L["Bind %s"]:format(name)
     selectButton(shortcut.pick, listening)
     shortcut.pick:SetEnabled(editable)
     shortcut.clear:SetEnabled(binding ~= nil and editable)
-    shortcut.status:SetText(not editable and "Shortcut and tracked action changes apply after combat."
-        or (listening and "Press a key combination. Esc cancels.") or errorText or defaultStatus)
+    shortcut.status:SetText(not editable and L["Shortcut and tracked action changes apply after combat."]
+        or (listening and L["Press a key combination. Esc cancels."]) or errorText or defaultStatus)
     tintLabel(shortcut.status, errorText and editable and color.gold or color.muted)
 end
 
@@ -477,10 +485,12 @@ local function sidebarEntry(parent, text, icon, key, category)
     nav:SetScript("OnEnter", function(self)
         self.hovered = true
         paintNav(self)
+        showHint(self)
     end)
     nav:SetScript("OnLeave", function(self)
         self.hovered = false
         paintNav(self)
+        hideTooltip(self)
     end)
     nav:SetScript("OnHide", nav:GetScript("OnLeave"))
     nav:SetScript("OnClick", function(self)
@@ -500,7 +510,10 @@ local function refreshSidebar(frame)
     local scroll = view:GetVerticalScroll()
     local position = selected and selected.offset and selected.offset - scroll
     local keepSelected = position and position < view:GetHeight() and position + selected:GetHeight() > 0
-    local buckets = { leveling = {}, spec = {}, other = {}, situational = {}, reminders = {} }
+    local buckets = {}
+    for _, section in ipairs(frame.sidebarSections) do
+        buckets[section[1]] = {}
+    end
     local classCount = 0
     for _, category in ipairs(A.categories) do
         local key = category.key
@@ -508,7 +521,9 @@ local function refreshSidebar(frame)
         if nav then
             local section = "other"
             local available = not category.slot or (category.slot == 16 and main) or (category.slot == 17 and offhand)
-            if category.kind == "reminder" then
+            if category.profession then
+                section = category.profession
+            elseif category.kind == "reminder" then
                 section = "reminders"
             elseif key == "food" or key == "elixir" then
                 section = "leveling"
@@ -528,7 +543,7 @@ local function refreshSidebar(frame)
 
     local order = { unpack(frame.fixedNavigation) }
     local y = 0
-    for _, section in ipairs(sidebarSections) do
+    for _, section in ipairs(frame.sidebarSections) do
         local key = section[1]
         local entries, title = buckets[key], frame.sidebarTitles[key]
         title:SetShown(#entries > 0)
@@ -551,13 +566,22 @@ end
 
 local function buildSidebar(frame)
     frame.fixedNavigation, frame.categoryByKey, frame.sidebarEntries, frame.sidebarTitles = {}, {}, {}, {}
+    frame.sidebarSections = { unpack(sidebarSections) }
+    frame.professionChoices = {}
+    for _, profession in ipairs(A.professions) do
+        if not profession.class or profession.class == A.state.class then
+            frame.sidebarSections[#frame.sidebarSections + 1] = { profession.key, profession.label }
+            frame.professionChoices[#frame.professionChoices + 1] = profession
+        end
+    end
     local fixed = CreateFrame("Frame", nil, frame)
     fixed:SetPoint("TOPLEFT", 4, -(headerHeight + 9))
     fixed:SetWidth(sidebarWidth - 16)
     for index, entry in ipairs({
-        { "General", "Interface\\Icons\\INV_Misc_Gear_01", "general" },
-        { "Appearance", "Interface\\Icons\\INV_Misc_Gem_Sapphire_02", "appearance" },
-        { "Shopping list", "Interface\\Icons\\INV_Misc_Coin_02", "shopping" },
+        { L["General"], "Interface\\Icons\\INV_Misc_Gear_01", "general" },
+        { L["Appearance"], "Interface\\Icons\\INV_Misc_Gem_Sapphire_02", "appearance" },
+        { L["Shopping list"], "Interface\\Icons\\INV_Misc_Coin_02", "shopping" },
+        { L["Professions"], "Interface\\Icons\\INV_Misc_Book_09", "professions" },
     }) do
         local nav = sidebarEntry(fixed, unpack(entry))
         placeSidebarEntry(nav, (index - 1) * 36)
@@ -567,7 +591,7 @@ local function buildSidebar(frame)
     fixed:SetHeight(fixedHeight)
     local scroll, body = scrollArea(frame, 4, headerHeight + 14 + fixedHeight, width - sidebarWidth + 12, 11)
     frame.sidebarScroll, frame.sidebarBody = scroll, body
-    for _, section in ipairs(sidebarSections) do
+    for _, section in ipairs(frame.sidebarSections) do
         local title = label(body, 13, color.muted, "LEFT", true)
         title:SetText(section[2])
         frame.sidebarTitles[section[1]] = title
@@ -598,8 +622,9 @@ local function textPair(parent, heading)
     return value, details, caption
 end
 
-local function dataColumn(parent, right, widthPixels, size, tint)
-    local col = label(parent, size, tint, "RIGHT")
+local function dataColumn(parent, right, widthPixels, size, tint, lines)
+    local col = label(parent, size, tint, "RIGHT", false, lines)
+    col:SetJustifyV("MIDDLE")
     col:SetPoint("RIGHT", -right, 0)
     col:SetWidth(widthPixels)
     return col
@@ -611,51 +636,12 @@ local function buildTableHeader(parent)
     fill(header, "BACKGROUND", color.raised)
     header.item = label(header, 13, color.muted, "LEFT", true)
     header.item:SetPoint("LEFT", 14, 0)
-    header.level = dataColumn(header, 295, 66, 13, color.muted)
-    header.bags = dataColumn(header, 223, 62, 13, color.muted)
-    header.price = dataColumn(header, 106, 110, 13, color.muted)
+    header.level = dataColumn(header, 295, 66, 13, color.muted, 2)
+    header.bags = dataColumn(header, 223, 62, 13, color.muted, 2)
+    header.price = dataColumn(header, 106, 110, 13, color.muted, 2)
     return header
 end
 
-local statLabels = {
-    agi = "Agi",
-    str = "Str",
-    sta = "Sta",
-    int = "Int",
-    spi = "Spirit",
-    ap = "AP",
-    map = "Melee AP",
-    spell = "Spell power",
-    spellCrit = "Spell crit",
-    mp5 = "MP5",
-    hp5 = "HP5",
-    armor = "Armor",
-    hp = "Health",
-    mana = "Mana",
-    crit = "Crit",
-    hit = "Hit",
-    defense = "Defense",
-    haste = "Haste",
-    phys = "Physical damage",
-    weapon = "Weapon damage",
-    heal = "Healing",
-    holy = "Holy damage",
-    xp = "XP",
-    arcane = "Arcane damage",
-    fire = "Fire damage",
-    frost = "Frost damage",
-    nature = "Nature damage",
-    shadow = "Shadow damage",
-    resist = "All resistance",
-    weaponCrit = "Weapon crit",
-    spellPenFire = "Fire spell pen.",
-    spellPenFrost = "Frost spell pen.",
-    shadowResist = "Shadow resistance",
-    fireResist = "Fire resistance",
-    frostResist = "Frost resistance",
-    reactiveDamageTaken = "Enemy damage taken",
-    thorns = "Reflected damage",
-}
 local percentStats = { crit = true, spellCrit = true, weaponCrit = true, haste = true, xp = true, hit = true }
 local procOils = { [3824] = true, [3829] = true }
 
@@ -666,12 +652,12 @@ local function statText(row, category, limit)
     local parts = {}
     local xp
     for stat, value in pairs(row.item.stats or {}) do
-        local name = statLabels[stat]
+        local name = A.statLabels[stat]
         if name and value ~= 0 and not (stat == "weapon" and procOils[row.item.id]) then
             if stat == "xp" then
-                xp = ("%+g%% %s"):format(value, category.kind == "food" and "kill XP" or "XP")
+                xp = L["%+g%% %s"]:format(value, category.kind == "food" and L["kill XP"] or L["XP"])
             else
-                local format = percentStats[stat] and "%+g%% %s" or "%+g %s"
+                local format = percentStats[stat] and L["%+g%% %s"] or L["%+g %s"]
                 parts[#parts + 1] = format:format(value, name)
             end
         end
@@ -714,7 +700,7 @@ local function makeItemRow(parent)
     widget.level = dataColumn(widget, 295, 38, 15, color.text)
     widget.bags = dataColumn(widget, 223, 62, 15, color.text)
     widget.price = dataColumn(widget, 106, 110, 15, color.gold)
-    widget.action = button(widget, 87, 30, "Track", function()
+    widget.action = button(widget, 87, 30, L["Track"], function()
         if widget.shopping then
             navigate(widget.category.key)
         else
@@ -763,26 +749,26 @@ local function renderRow(frame, index, y, category, row, pinned, shopping, hasMa
     tintLabel(widget.name, (pinned or upgrade) and color.mint or ((not row or row.eligible) and color.text or color.muted))
     if shopping then
         local stat = statText(row, category, 1)
-        local detail = row and (row.name or row.item.name) or "No eligible purchase yet"
-        widget.detail:SetText(stat ~= "" and (detail .. "  ·  " .. stat) or detail)
+        local detail = row and (row.name or row.item.name) or L["No eligible purchase yet"]
+        widget.detail:SetText(stat ~= "" and L["%s  ·  %s"]:format(detail, stat) or detail)
         widget.level:SetText("")
         widget.action.hint = nil
     else
         local stat = statText(row, category)
         local detail = row.reason or (stat ~= "" and stat) or row.item.note or ""
         if row.level > A.state.level then
-            detail = ("At level %d%s"):format(row.level, stat ~= "" and ("  ·  " .. stat) or "")
+            detail = stat ~= "" and L["At level %d  ·  %s"]:format(row.level, stat) or L["At level %d"]:format(row.level)
         end
-        widget.detail:SetText(upgrade and (detail ~= "" and ("Upgrade  ·  " .. detail) or "Upgrade") or detail)
+        widget.detail:SetText(upgrade and (detail ~= "" and L["Upgrade  ·  %s"]:format(detail) or L["Upgrade"]) or detail)
         widget.level:SetText(category.kind ~= "reminder" and row.level or "")
         if pinned then
-            widget.action.hint = "Use automatic selection for this category."
+            widget.action.hint = L["Use automatic selection for this category."]
         elseif not row.eligible then
-            widget.action.hint = "Prefer this choice when it becomes available."
+            widget.action.hint = L["Prefer this choice when it becomes available."]
         elseif row.canBuy then
-            widget.action.hint = "Prefer this item for buying or applying this buff."
+            widget.action.hint = L["Prefer this item for buying or applying this buff."]
         else
-            widget.action.hint = "Prefer this choice when applying the buff."
+            widget.action.hint = L["Prefer this choice when applying the buff."]
         end
     end
     tintLabel(widget.detail, upgrade and color.mint or color.muted)
@@ -791,7 +777,7 @@ local function renderRow(frame, index, y, category, row, pinned, shopping, hasMa
     tintLabel(widget.bags, row and row.count and row.count > 0 and color.mint or color.muted)
     widget.price:SetText(hasMarket and priceText(row and row.price) or "")
     tintLabel(widget.price, row and row.price ~= nil and color.gold or color.muted)
-    widget.action.title:SetText(shopping and "View" or (pinned and "Tracked" or "Track"))
+    widget.action.title:SetText(shopping and L["View"] or (pinned and L["Tracked"] or L["Track"]))
     selectButton(widget.action, pinned)
     widget:Show()
 end
@@ -805,7 +791,7 @@ local function buildSearch(frame, page)
     local searchRow = CreateFrame("Frame", nil, page)
     searchRow:SetSize(contentWidth, 32)
     local search = CreateFrame("EditBox", nil, searchRow)
-    search:SetSize(contentWidth - 185, 32)
+    search:SetSize(contentWidth - 190, 32)
     search:SetPoint("LEFT")
     search:SetAutoFocus(false)
     search:SetMaxLetters(128)
@@ -819,7 +805,7 @@ local function buildSearch(frame, page)
     face:SetPoint("BOTTOMRIGHT", -1, 1)
     search.placeholder = label(search, 14, color.muted)
     search.placeholder:SetPoint("LEFT", 10, 0)
-    search.placeholder:SetText("Search names, stats, or effects")
+    search.placeholder:SetText(L["Search names, stats, or effects"])
     search:SetScript("OnEditFocusGained", function(self)
         paintSearch(self)
         if frame.bindingTarget then
@@ -834,13 +820,13 @@ local function buildSearch(frame, page)
         paintSearch(self)
         if typed then A.RefreshOptions() end
     end)
-    local clear = button(searchRow, 66, 32, "Clear", function()
+    local clear = button(searchRow, 70, 32, L["Clear"], function()
         search:SetText("")
         search:SetFocus()
         A.RefreshOptions()
     end)
     clear:SetPoint("LEFT", search, "RIGHT", 7, 0)
-    clear.hint = "Clear the search for this category."
+    clear.hint = L["Clear the search for this category."]
     searchRow.clear = clear
     searchRow.count = dataColumn(searchRow, 3, 106, 14, color.muted)
     page.searchRow, page.search = searchRow, search
@@ -887,27 +873,27 @@ local function buildCategory(frame)
     page:SetPoint("TOPLEFT")
     page:SetPoint("TOPRIGHT")
     page:SetHeight(summaryY + 87)
-    page.track = checkbox(page, 171, "Enable category", function()
+    page.track = checkbox(page, 171, L["Enable category"], function()
         toggleTrack(frame.categoryByKey[activePage])
     end)
     page.track:SetPoint("TOPRIGHT", 0, -1)
-    page.track.hint = "Show this buff on the bar and wheel for this profile."
-    page.restore = button(page, 121, 29, "Use profile", function()
+    page.track.hint = L["Show this buff on the bar and wheel for this profile."]
+    page.restore = button(page, 121, 29, L["Use profile"], function()
         A.Prefs(activePage).enabled = nil
         A.Update()
     end)
     page.restore:SetPoint("RIGHT", page.track, "LEFT", -9, 0)
-    page.restore.hint = "Use the selected profile’s default for enabling this buff."
+    page.restore.hint = L["Use the selected profile’s default for enabling this buff."]
 
     local shortcutTitle = label(page, 16, color.text, "LEFT", true)
     shortcutTitle:SetPoint("TOPLEFT", 0, -72)
-    shortcutTitle:SetText("Buff shortcut")
+    shortcutTitle:SetText(L["Buff shortcut"])
     local shortcutStatus = label(page, 13, color.muted, "LEFT", false, 2)
     shortcutStatus:SetPoint("TOPLEFT", 0, -97)
     shortcutStatus:SetWidth(contentWidth - 244)
     page.shortcut = buildShortcut(frame, page, function() return A.GetBuffBinding(activePage) end,
         function(key) return A.SetBuffBinding(activePage, key) end, shortcutStatus)
-    page.shortcut.pick:SetPoint("TOPRIGHT", -69, -77)
+    page.shortcut.pick:SetPoint("TOPRIGHT", -(page.shortcut.clear:GetWidth() + 7), -77)
 
     local reminder = CreateFrame("Frame", nil, page)
     reminder:SetPoint("TOPLEFT", 0, -summaryY)
@@ -934,7 +920,7 @@ local function buildCategory(frame)
     status:SetHeight(78)
     fill(status, "BACKGROUND", color.raised)
     page.status = status
-    for index, caption in ipairs({ "Recommended buy", "Best in bags", "Next unlock" }) do
+    for index, caption in ipairs({ L["Recommended buy"], L["Best in bags"], L["Next unlock"] }) do
         local cell = CreateFrame("Frame", nil, status)
         cell:SetPoint("TOPLEFT", summaryCellWidth * (index - 1), 0)
         cell:SetSize(index == 3 and contentWidth - 2 * summaryCellWidth or summaryCellWidth, 78)
@@ -948,26 +934,26 @@ local function buildCategory(frame)
         cell.value, cell.details, cell.caption = textPair(cell, caption)
         status[index] = cell
     end
-    page.cheap = checkbox(page, 146, "Lowest price", function()
+    page.cheap = checkbox(page, 146, L["Lowest price"], function()
         local pref = A.Prefs(activePage)
         pref.cheapest = not pref.cheapest
         A.Update()
     end)
     page.cheap.hint =
-        "Recommend the least expensive eligible item priced by Auctionator. A tracked item takes priority."
-    page.showUnusable = checkbox(page, 218, "Show unusable items", function()
+        L["Recommend the least expensive eligible item priced by Auctionator. A tracked item takes priority."]
+    page.showUnusable = checkbox(page, 218, L["Show unusable items"], function()
         local pref = A.Prefs(activePage)
         pref.showUnusable = not pref.showUnusable
         A.RefreshOptions()
     end)
-    page.showUnusable.hint = "Include items and spells you cannot currently use."
-    page.clear = button(page, 136, 30, "Use automatic", function()
+    page.showUnusable.hint = L["Include items and spells you cannot currently use."]
+    page.clear = button(page, 136, 30, L["Use automatic"], function()
         A.SetTrackedItem(A.Prefs(activePage))
         A.Update()
     end)
-    page.clear.hint = "Return to the profile’s ranking and price preferences."
+    page.clear.hint = L["Return to the profile’s ranking and price preferences."]
     page.rankTitle = label(page, 18, color.text, "LEFT", true)
-    page.rankTitle:SetText("Item rankings")
+    page.rankTitle:SetText(L["Item rankings"])
     buildSearch(frame, page)
     buildRankingGroups(page)
     return page
@@ -987,6 +973,53 @@ local function sectionTitle(parent, y, text)
     title:SetText(text)
 end
 
+local function buildProfessions(frame)
+    local page = contentPage(frame, 1)
+    page.modes, page.links = {}, {}
+    sectionTitle(page, 0, L["Bar mode"])
+
+    local choices = { { key = "auto", label = A.BarModeLabel("auto") }, { key = "combat", label = A.BarModeLabel("combat") } }
+    for _, profession in ipairs(frame.professionChoices) do
+        choices[#choices + 1] = profession
+    end
+    local rows = math.ceil(#choices / 5)
+    local columns = math.ceil(#choices / rows)
+    local modeWidth = math.floor((contentWidth - (columns - 1) * 8) / columns)
+    for index, choice in ipairs(choices) do
+        local key = choice.key
+        local mode = button(page, modeWidth, 33, choice.label, function() A.SetBarMode(key) end)
+        mode:SetPoint("TOPLEFT", ((index - 1) % columns) * (modeWidth + 8), -31 - math.floor((index - 1) / columns) * 41)
+        page.modes[key] = mode
+    end
+    local y = 31 + rows * 41
+    page.activeBar = label(page, 15, color.text, "LEFT", true)
+    page.activeBar:SetPoint("TOPLEFT", 0, -y - 3)
+    local help = label(page, 14, color.muted, "LEFT", false, 2)
+    help:SetPoint("TOPLEFT", 0, -y - 29)
+    help:SetWidth(contentWidth)
+    help:SetText(L["Automatic switches between the combat and fishing bars based on equipped gear."])
+    y = y + 84
+    line(page, 0, y - 16, 0)
+    local linkWidth = math.floor((contentWidth - 12) / 2)
+    for _, profession in ipairs(frame.professionChoices) do
+        sectionTitle(page, y, profession.label)
+        y = y + 30
+        local index = 0
+        for _, category in ipairs(A.categories) do
+            if category.profession == profession.key and frame.categoryByKey[category.key] then
+                local key = category.key
+                local link = button(page, linkWidth, 33, category.label, function() navigate(key) end)
+                link:SetPoint("TOPLEFT", (index % 2) * (linkWidth + 12), -y - math.floor(index / 2) * 41)
+                page.links[key] = link
+                index = index + 1
+            end
+        end
+        y = y + math.ceil(index / 2) * 41 + 20
+    end
+    page:SetHeight(y)
+    return page
+end
+
 local function settingsCopy(parent, title, detail, right)
     local textWidth = parent:GetWidth() - right - 1
     local name = label(parent, 16, color.text, "LEFT", true)
@@ -997,11 +1030,11 @@ local function settingsCopy(parent, title, detail, right)
     description:SetPoint("TOPLEFT", 1, -32)
     description:SetWidth(textWidth)
     description:SetText(detail)
-    return description
+    return description, name
 end
 
 local function buildGeneral(frame)
-    local page = contentPage(frame, 624)
+    local page = contentPage(frame, 705)
     local columns = {}
     local columnWidth = math.floor((contentWidth - 28) / 2)
     for index = 1, 2 do
@@ -1027,57 +1060,59 @@ local function buildGeneral(frame)
         end)
         line(column, 0, y, 0)
         control:SetPoint("TOPLEFT", 0, -y - 1)
-        control:SetHeight(60)
+        -- Leave room for a title and two translated lines at the largest text size.
+        control:SetHeight(72)
         control:SetHitRectInsets(0, 0, 0, 0)
         control:SetHighlightTexture(fill(control, "HIGHLIGHT", color.raised))
         control.box:ClearAllPoints()
         control.box:SetPoint("RIGHT", -5, 0)
-        settingsCopy(control, title, detail, 31)
+        control.description, control.title = settingsCopy(control, title, detail, 31)
         page.checks[key] = control
+        return y + control:GetHeight() + 2
     end
     local bar, wheel = columns[1], columns[2]
-    sectionTitle(bar, 0, "Buff bar")
-    setting(bar, 29, "showBar", "Show buff bar", "See tracked buffs and their remaining time.")
-    line(bar, 0, 91, 0)
-    local orientation = label(bar, 16, color.text, "LEFT", true)
-    orientation:SetPoint("TOPLEFT", 1, -109)
-    orientation:SetText("Orientation")
-    page.orientations = {}
-    local position = 0
-    for _, option in ipairs({ { "vertical", "Vertical", 81 }, { "horizontal", "Horizontal", 106 } }) do
-        local value, text, size = unpack(option)
-        local control = button(bar, size, 31, text, function()
-            A.db.barOrientation = value
+    sectionTitle(bar, 0, L["Buff bar"])
+    local directionY = setting(bar, 29, "showBar", L["Show buff bar"], L["See tracked buffs and their remaining time."])
+    line(bar, 0, directionY, 0)
+    local directionTitle = label(bar, 16, color.text, "LEFT", true)
+    directionTitle:SetPoint("TOPLEFT", 1, -directionY - 5)
+    directionTitle:SetText(L["Icons grow"])
+    page.directions = {}
+    local directionWidth = math.floor((columnWidth - 18) / 4)
+    for index, option in ipairs({ { "left", L["Left"] }, { "right", L["Right"] },
+        { "up", L["Up"] }, { "down", L["Down"] } }) do
+        local value, text = unpack(option)
+        local control = button(bar, directionWidth, 25, text, function()
+            A.db.barDirection = value
             refreshControls()
         end)
-        control:SetPoint("TOPRIGHT", -position, -102)
-        page.orientations[value] = control
-        position = position + size + 6
+        control:SetPoint("TOPLEFT", (index - 1) * (directionWidth + 6), -directionY - 33)
+        page.directions[value] = control
     end
-    setting(bar, 145, "mouseoverOnly", "Show on mouseover", "Reveal the bar on hover. Buff shortcuts still work.")
-    setting(bar, 207, "locked", "Lock bar position", "Keep the bar anchored when you drag it.")
-    setting(bar, 269, "collapsed", "Collapse buff bar", "In combat, use the checklist or its shortcut.")
-    setting(bar, 331, "highlightMissing", "Glow when buffs are missing", "Add a subtle glow to the collapsed bar when a tracked buff is missing.")
-    line(bar, 0, 393, 0)
+    local barY = setting(bar, directionY + 63, "mouseoverOnly", L["Show on mouseover"], L["Reveal the bar on hover. Buff shortcuts still work."])
+    barY = setting(bar, barY, "locked", L["Lock bar position"], L["Keep the bar anchored when you drag it."])
+    barY = setting(bar, barY, "collapsed", L["Collapse buff bar"], L["In combat, use the checklist or its shortcut."])
+    barY = setting(bar, barY, "highlightMissing", L["Glow when buffs are missing"], L["Add a subtle glow to the collapsed bar when a tracked buff is missing."])
+    line(bar, 0, barY, 0)
     local barBinding = CreateFrame("Frame", nil, bar)
-    barBinding:SetPoint("TOPLEFT", 0, -394)
+    barBinding:SetPoint("TOPLEFT", 0, -barY - 1)
     barBinding:SetSize(columnWidth, 112)
-    local barStatus = settingsCopy(barBinding, "Bar toggle shortcut", "", 0)
+    local barStatus = settingsCopy(barBinding, L["Bar toggle shortcut"], "", 0)
     page.barShortcut = buildShortcut(frame, barBinding, A.GetBarToggleBinding, A.SetBarToggleBinding, barStatus)
     page.barShortcut.pick:SetPoint("BOTTOMLEFT", 0, 1)
-    sectionTitle(bar, 524, "Minimap")
-    setting(bar, 553, "showMinimap", "Show minimap button", "Open settings or the wheel from the minimap.")
+    sectionTitle(bar, barY + 131, L["Minimap"])
+    setting(bar, barY + 160, "showMinimap", L["Show minimap button"], L["Open settings or the wheel from the minimap."])
 
-    sectionTitle(wheel, 0, "Buff wheel")
-    setting(wheel, 29, "showWheel", "Enable buff wheel", "Show tracked buffs in a centered wheel.")
-    line(wheel, 0, 91, 0)
+    sectionTitle(wheel, 0, L["Buff wheel"])
+    local wheelY = setting(wheel, 29, "showWheel", L["Enable buff wheel"], L["Show tracked buffs in a centered wheel."])
+    line(wheel, 0, wheelY, 0)
     local bindingBox = CreateFrame("Frame", nil, wheel)
-    bindingBox:SetPoint("TOPLEFT", 0, -92)
+    bindingBox:SetPoint("TOPLEFT", 0, -wheelY - 1)
     bindingBox:SetSize(columnWidth, 148)
-    local shortcutStatus = settingsCopy(bindingBox, "Wheel shortcut", "", 0)
+    local shortcutStatus = settingsCopy(bindingBox, L["Wheel shortcut"], "", 0)
     page.shortcut = buildShortcut(frame, bindingBox, A.GetWheelBinding, A.SetWheelBinding, shortcutStatus)
     page.shortcut.pick:SetPoint("BOTTOMLEFT", 0, 42)
-    page.preview = button(bindingBox, 99, 31, "Preview", function()
+    page.preview = button(bindingBox, 99, 31, L["Preview"], function()
         stopCapture(frame)
         local success, reason = A.ToggleWheel()
         frame.bindingError = success == false and reason or nil
@@ -1085,20 +1120,20 @@ local function buildGeneral(frame)
         A.RefreshOptions()
     end)
     page.preview:SetPoint("LEFT", page.shortcut.clear, "RIGHT", 7, 0)
-    page.preview.hint = "Open the wheel at screen center. Use the binding to select a buff on key release."
+    page.preview.hint = L["Open the wheel at screen center. Use the binding to select a buff on key release."]
     local hint = label(bindingBox, 13, color.muted, "LEFT", false, 2)
     hint:SetPoint("BOTTOMLEFT", 1, 1)
     hint:SetPoint("BOTTOMRIGHT", 0, 1)
-    hint:SetText("Hold the shortcut, point at a buff, and release to use it.")
+    hint:SetText(L["Hold the shortcut, point at a buff, and release to use it."])
 
-    sectionTitle(wheel, 267, "Utility reminders")
-    setting(wheel, 296, "reminders", "Enable reminders", "Allow Campfire and Sleeping Bag reminders.")
+    sectionTitle(wheel, wheelY + 176, L["Utility reminders"])
+    local linksY = setting(wheel, wheelY + 205, "reminders", L["Enable reminders"], L["Allow Campfire and Sleeping Bag reminders."])
     page.reminderLinks = {}
     for index, key in ipairs({ "campfire", "sleepingBag" }) do
         local category = frame.categoryByKey[key]
         if category then
             local link = button(wheel, 150, 31, navigationLabel(category), function() navigate(key) end)
-            link:SetPoint("TOPLEFT", (index - 1) * 157, -364)
+            link:SetPoint("TOPLEFT", (index - 1) * 157, -linksY - 6)
             page.reminderLinks[key] = link
         end
     end
@@ -1158,7 +1193,7 @@ local function scaleSlider(parent, key, minimum, maximum)
     slider:SetThumbTexture(thumb)
     slider.value = dataColumn(parent, 8, 61, 16, color.text)
     slider:SetScript("OnValueChanged", function(self, value, userInput)
-        self.value:SetText(("%d%%"):format(math.floor(value * 100 + 0.5)))
+        self.value:SetText(L["%d%%"]:format(math.floor(value * 100 + 0.5)))
         if not userInput then return end
         A.db[key] = value
         refreshScale(key)
@@ -1168,7 +1203,7 @@ end
 
 local function buildAppearance(frame)
     local page = contentPage(frame, 425)
-    local reset = button(page, 161, 30, "Restore defaults", function()
+    local reset = button(page, 161, 30, L["Restore defaults"], function()
         A.db.customAccent, A.db.customBackground = nil, nil
         A.db.barScale, A.db.wheelScale, A.db.fontScale = 1, 1, 1
         theme.Refresh()
@@ -1176,13 +1211,13 @@ local function buildAppearance(frame)
         A.RefreshWheel()
     end)
     reset:SetPoint("BOTTOMRIGHT", page, "TOPRIGHT", 0, 15)
-    reset.hint = "Restore the class accent, slate background and default sizes."
+    reset.hint = L["Restore the class accent, slate background and default sizes."]
 
-    sectionTitle(page, 0, "Colors")
+    sectionTitle(page, 0, L["Colors"])
     page.colors = {}
     for index, spec in ipairs({
-        { "customAccent", "Accent", "Class color", color.accent, "Use class color" },
-        { "customBackground", "Background", "Slate", color.panel, "Use slate" },
+        { "customAccent", L["Accent"], L["Class color"], color.accent, L["Use class color"] },
+        { "customBackground", L["Background"], L["Slate"], color.panel, L["Use slate"] },
     }) do
         local key, title, defaultName, paletteColor, resetText = unpack(spec)
         local y = 29 + (index - 1) * 67
@@ -1198,7 +1233,7 @@ local function buildAppearance(frame)
             theme.Refresh()
         end)
         row.reset:SetPoint("RIGHT", -1, 0)
-        row.pick = button(row, 140, 32, "Pick color", function()
+        row.pick = button(row, 140, 32, L["Pick color"], function()
             pickColor(key, paletteColor)
         end)
         row.pick:SetPoint("RIGHT", row.reset, "LEFT", -8, 0)
@@ -1211,12 +1246,12 @@ local function buildAppearance(frame)
         page.colors[key] = row
     end
 
-    sectionTitle(page, 188, "Scale")
+    sectionTitle(page, 188, L["Scale"])
     page.scales = {}
     for index, spec in ipairs({
-        { "barScale", "Buff bar", "Resize the bar and its handle.", 0.75, 1.50 },
-        { "wheelScale", "Buff wheel", "Resize the wheel and its action slots.", 0.75, 1.50 },
-        { "fontScale", "Text size", "Resize text in AlwaysBuffed.", 0.85, 1.25 },
+        { "barScale", L["Buff bar"], L["Resize the bar and its handle."], 0.75, 1.50 },
+        { "wheelScale", L["Buff wheel"], L["Resize the wheel and its action slots."], 0.75, 1.50 },
+        { "fontScale", L["Text size"], L["Resize text in AlwaysBuffed."], 0.85, 1.25 },
     }) do
         local key, title, detail, minimum, maximum = unpack(spec)
         local y = 218 + (index - 1) * 67
@@ -1254,7 +1289,7 @@ end
 local function refreshProfile(frame)
     local profile = A.state.profile
     local mode = A.db.profile or "auto"
-    frame.profile.title:SetText(mode == "auto" and ("Auto (%s)"):format(profile.label) or profile.label)
+    frame.profile.title:SetText(mode == "auto" and L["Auto (%s)"]:format(profile.label) or profile.label)
     if not frame.dismissMenu:IsShown() then
         return
     end
@@ -1273,7 +1308,7 @@ local function refreshProfile(frame)
             frame.profileItems[index] = item
         end
         item.key = key
-        item.title:SetText(choice and choice.label or "Auto (based on talents)")
+        item.title:SetText(choice and choice.label or L["Auto (based on talents)"])
         selectButton(item, mode == key)
         item:Show()
     end
@@ -1332,20 +1367,20 @@ local function buildPanel()
 
     local title = label(header, 29, color.text, "LEFT", true)
     title:SetPoint("LEFT", 20, 0)
-    title:SetText("AlwaysBuffed")
-    local close = button(header, 70, 33, "Close", function()
+    title:SetText(L["AlwaysBuffed"])
+    local close = button(header, 70, 33, L["Close"], function()
         frame:Hide()
     end)
     close:SetPoint("RIGHT", -16, 0)
     local profileCaption = label(header, 14, color.muted, "RIGHT", true)
-    frame.profile = button(header, 210, 33, "", function()
+    frame.profile = button(header, 252, 33, "", function()
         stopCapture(frame)
         frame.category.search:ClearFocus()
         frame.dismissMenu:Show()
         A.RefreshOptions()
     end)
     frame.profile:SetPoint("RIGHT", close, "LEFT", -10, 0)
-    frame.profile.hint = "Choose the profile that ranks items and stores your buff preferences."
+    frame.profile.hint = L["Choose the profile that ranks items and stores your buff preferences."]
     frame.profile.title:ClearAllPoints()
     frame.profile.title:SetPoint("LEFT", 8, 0)
     frame.profile.title:SetPoint("RIGHT", -24, 0)
@@ -1360,8 +1395,8 @@ local function buildPanel()
     arrowRight:SetStartPoint("RIGHT", frame.profile, -15, -2)
     arrowRight:SetEndPoint("RIGHT", frame.profile, -11, 2)
     profileCaption:SetPoint("RIGHT", frame.profile, "LEFT", -12, 0)
-    profileCaption:SetText("Profile")
-    frame.keepTracked = button(header, 166, 33, "Keep current item", function()
+    profileCaption:SetText(L["Profile"])
+    frame.keepTracked = button(header, 166, 33, L["Keep current item"], function()
         local pref = A.Prefs(activePage)
         A.SetTrackedItem(pref, pref.pin, A.state.categories[activePage])
         A.Update()
@@ -1376,6 +1411,7 @@ local function buildPanel()
     frame.subheading:SetPoint("TOPLEFT", 0, -39)
     frame.subheading:SetWidth(contentWidth)
     frame.general = buildGeneral(frame)
+    frame.professions = buildProfessions(frame)
     frame.appearance = buildAppearance(frame)
     frame.category = buildCategory(frame)
     frame.tableHeader = buildTableHeader(frame.body)
@@ -1428,34 +1464,45 @@ local function buildPanel()
 end
 
 local function renderGeneral(frame)
-    frame.heading:SetText("General")
+    frame.heading:SetText(L["General"])
     for key, control in pairs(frame.general.checks) do
         check(control, A.db[key])
     end
-    local current = A.db.barOrientation or "horizontal"
-    for orientation, control in pairs(frame.general.orientations) do
-        selectButton(control, orientation == current)
+    local current = A.db.barDirection or (A.db.barOrientation == "vertical" and "down" or "right")
+    for direction, control in pairs(frame.general.directions) do
+        selectButton(control, direction == current)
     end
-    paintShortcut(frame, frame.general.shortcut, "buff wheel", "Also available in WoW Keybindings.")
-    paintShortcut(frame, frame.general.barShortcut, "buff bar", "Show or hide the buff bar.")
+    paintShortcut(frame, frame.general.shortcut, L["buff wheel"], L["Also available in WoW Keybindings."])
+    paintShortcut(frame, frame.general.barShortcut, L["buff bar"], L["Show or hide the buff bar."])
     frame.general.preview:SetEnabled(A.db.showWheel and not InCombatLockdown())
     return frame.general:GetHeight() + 58
 end
 
 local function renderAppearance(frame)
-    frame.heading:SetText("Appearance")
+    frame.heading:SetText(L["Appearance"])
     local page = frame.appearance
     for key, row in pairs(page.colors) do
         local custom = A.db[key]
         local swatch = row.paletteColor
         row.swatch:SetColorTexture(swatch[1], swatch[2], swatch[3], 1)
-        row.mode:SetText(custom and "Custom color" or row.defaultName)
+        row.mode:SetText(custom and L["Custom color"] or row.defaultName)
         row.reset:SetEnabled(custom ~= nil)
     end
     for key, slider in pairs(page.scales) do
         slider:SetValue(tonumber(A.db[key]) or 1)
-        slider.value:SetText(("%d%%"):format(math.floor(slider:GetValue() * 100 + 0.5)))
+        slider.value:SetText(L["%d%%"]:format(math.floor(slider:GetValue() * 100 + 0.5)))
     end
+    return page:GetHeight() + 58
+end
+
+local function renderProfessions(frame)
+    local page = frame.professions
+    frame.heading:SetText(L["Professions"])
+    local mode = A.db.barMode or "auto"
+    for key, control in pairs(page.modes) do
+        selectButton(control, key == mode)
+    end
+    page.activeBar:SetText(L["Active bar: %s"]:format(A.BarModeLabel(A.state.barProfession)))
     return page:GetHeight() + 58
 end
 
@@ -1466,8 +1513,8 @@ local function tableAt(frame, y, itemLabel, levelLabel, showPrice)
     header:SetPoint("TOPRIGHT", 0, -y)
     header.item:SetText(itemLabel)
     header.level:SetText(levelLabel)
-    header.bags:SetText("In bags")
-    header.price:SetText("Auction price")
+    header.bags:SetText(L["In bags"])
+    header.price:SetText(L["Auction price"])
     header.price:SetShown(showPrice)
     header:Show()
     return y + tableHeaderHeight
@@ -1486,12 +1533,12 @@ local function hasMarketItems(state)
 end
 
 local function renderShopping(frame)
-    frame.heading:SetText("Shopping list")
-    frame.subheading:SetText("Recommended buys by category. Unit prices come from Auctionator’s last scan.")
-    local y, index = tableAt(frame, 74, "Category / item", "", true), 0
+    frame.heading:SetText(L["Shopping list"])
+    frame.subheading:SetText(L["Recommended buys by category. Unit prices come from Auctionator’s last scan."])
+    local y, index = tableAt(frame, 74, L["Category / item"], "", true), 0
     for _, category in ipairs(A.categories) do
         local state = A.state.categories[category.key]
-        if state and state.tracked and A.CategoryForClass(category, A.state.class) and hasMarketItems(state) then
+        if state and state.tracked and A.OnActiveBar(category) and A.CategoryForClass(category, A.state.class) and hasMarketItems(state) then
             index = index + 1
             renderRow(frame, index, y, category, state.buy, false, true, true)
             y = y + rowHeight
@@ -1499,7 +1546,7 @@ local function renderShopping(frame)
     end
     if index == 0 then
         frame.tableHeader:Hide()
-        frame.empty:SetText("Enable a category with auction items to see its recommendations here.")
+        frame.empty:SetText(L["Enable a category with auction items to see its recommendations here."])
     end
     return math.max(y + 6, 124), index
 end
@@ -1519,20 +1566,20 @@ local function renderRankedItems(frame, category, rows, pref, y, hasMarket)
         end
     end
     page.searchRow.clear:SetEnabled(typed ~= "")
-    page.searchRow.count:SetText(searching and ("%d %s"):format(total, total == 1 and "result" or "results") or "")
+    page.searchRow.count:SetText(searching and (total == 1 and L["%d result"] or L["%d results"]):format(total) or "")
     if total == 0 then
         for _, header in pairs(page.groupHeaders) do header:Hide() end
         frame.empty:ClearAllPoints()
         frame.empty:SetPoint("TOPLEFT", 0, -y - 12)
         if searching then
-            frame.empty:SetText(pref.showUnusable and "No items match your search." or "No usable items match your search.")
+            frame.empty:SetText(pref.showUnusable and L["No items match your search."] or L["No usable items match your search."])
         else
-            frame.empty:SetText("No usable items. Enable Show unusable items to browse this category.")
+            frame.empty:SetText(L["No usable items. Enable Show unusable items to browse this category."])
         end
         return y + 56, 0
     end
 
-    y = tableAt(frame, y, "Item", category.kind == "reminder" and "" or "Level", hasMarket)
+    y = tableAt(frame, y, L["Item"], category.kind == "reminder" and "" or L["Level"], hasMarket)
     local collapsed = page.collapsedGroups[category.key] or {}
     local used = 0
     for _, group in ipairs(rankingGroups) do
@@ -1569,7 +1616,7 @@ local function renderCategory(frame, category)
         and upgrade ~= nil and pin.item.id ~= upgrade.item.id
     frame.keepTracked:SetShown(canKeep)
     if canKeep then
-        frame.keepTracked.hint = ("Keep %s and dismiss upgrades available now."):format(pin.name)
+        frame.keepTracked.hint = L["Keep %s and dismiss upgrades available now."]:format(pin.name)
     end
     if frame.highlightItemID and (not upgrade or not upgrade.eligible or upgrade.item.id ~= frame.highlightItemID) then
         frame.highlightItemID = nil
@@ -1578,23 +1625,40 @@ local function renderCategory(frame, category)
     frame.heading:SetText(category.label)
     local reminder = category.kind == "reminder"
     local enabled = tracked(category)
+    local onActiveBar = not category.profession or A.OnActiveBar(category)
     local status = reminder and "" or activeText(state)
     if reminder and not A.db.reminders then
-        status = "Reminders are off. Enable this reminder to turn them on."
+        status = L["Reminders are off. Enable this reminder to turn them on."]
     elseif not enabled then
-        status = reminder and "Reminder off for this profile" or "Category off for this profile"
+        status = reminder and L["Reminder off for this profile"] or L["Category off for this profile"]
+    elseif not onActiveBar then
+        status = L["Shown on the %s bar."]:format(A.BarModeLabel(category.profession))
     elseif category.slot and #state.rows > 0 and state.applicable == false then
-        status = category.slot == 17 and "Equip a compatible off-hand weapon" or "Equip a compatible main-hand weapon"
+        if category.profession == "fishing" then
+            status = L["Requires a fishing pole"]
+        else
+            status = category.slot == 17 and L["Equip a compatible off-hand weapon"] or L["Equip a compatible main-hand weapon"]
+        end
     end
     frame.subheading:SetText(status)
-    tintLabel(frame.subheading, enabled and state.active and color.mint or color.muted)
-    page.track.title:SetText(reminder and "Enable reminder" or "Enable category")
-    page.track.hint = not A.db.reminders and reminder and "Turn on reminders and enable this reminder for this profile."
-        or "Show this buff on the bar and wheel for this profile."
+    tintLabel(frame.subheading, enabled and onActiveBar and state.active and color.mint or color.muted)
+    page.track.title:SetText(reminder and L["Enable reminder"] or L["Enable category"])
+    if category.profession then
+        page.track.hint = L["Show this category when its profession bar is active."]
+    else
+        page.track.hint = not A.db.reminders and reminder and L["Turn on reminders and enable this reminder for this profile."]
+            or L["Show this buff on the bar and wheel for this profile."]
+    end
     check(page.track, enabled)
     page.restore:SetShown(pref.enabled ~= nil)
-    local shortcutStatus = enabled and "Use this category’s selected item or spell, even when the bar is hidden."
-        or (reminder and "Enable this reminder to use its shortcut." or "Enable this category to use its shortcut.")
+    local shortcutStatus
+    if not enabled then
+        shortcutStatus = reminder and L["Enable this reminder to use its shortcut."] or L["Enable this category to use its shortcut."]
+    elseif category.profession then
+        shortcutStatus = L["Use this category’s selected item or spell while its profession bar is active."]
+    else
+        shortcutStatus = L["Use this category’s selected item or spell, even when the bar is hidden."]
+    end
     paintShortcut(frame, page.shortcut, category.label, shortcutStatus)
     page.reminder:SetShown(reminder)
     local count = #state.rows
@@ -1615,8 +1679,8 @@ local function renderCategory(frame, category)
 
     page.rankTitle:ClearAllPoints()
     page.rankTitle:SetPoint("TOPLEFT", 0, -rankY - 4)
-    page.rankTitle:SetText(category.key == "campfire" and "Campfire kits"
-        or (category.key == "sleepingBag" and "Sleeping bag" or "Item rankings"))
+    page.rankTitle:SetText(category.key == "campfire" and L["Campfire kits"]
+        or (category.key == "sleepingBag" and L["Sleeping bag"] or L["Item rankings"]))
     page.clear:ClearAllPoints()
     page.clear:SetPoint("TOPRIGHT", 0, -rankY)
     page.cheap:ClearAllPoints()
@@ -1629,6 +1693,7 @@ local function renderCategory(frame, category)
     else
         page.showUnusable:SetPoint("TOPRIGHT", 0, -rankY)
     end
+    page.rankTitle:SetPoint("TOPRIGHT", page.showUnusable, "TOPLEFT", -8, -4)
     page.searchRow:ClearAllPoints()
     page.searchRow:SetPoint("TOPLEFT", 0, -rankY - 40)
 
@@ -1636,7 +1701,7 @@ local function renderCategory(frame, category)
         for _, header in pairs(page.groupHeaders) do header:Hide() end
         frame.empty:ClearAllPoints()
         frame.empty:SetPoint("TOPLEFT", 0, -rankY - 40)
-        frame.empty:SetText(category.description or "No matching items or spells for your class.")
+        frame.empty:SetText(category.description or L["No matching items or spells for your class."])
         return rankY + 86, 0
     end
 
@@ -1659,19 +1724,19 @@ local function renderCategory(frame, category)
             end
         end
         cells[3].value:SetText(
-            nextRow and ("Lv %d  ·  %s"):format(nextRow.level, nextRow.name or nextRow.item.name) or "All unlocked"
+            nextRow and L["Lv %d  ·  %s"]:format(nextRow.level, nextRow.name or nextRow.item.name) or L["All unlocked"]
         )
         cells[3].details:SetText(statText(nextRow, category, 1))
     end
     cells[1].itemRow, cells[2].itemRow, cells[3].itemRow = buy, bag, nextRow
-    cells[1].caption:SetText(pin and buy == pin and "Tracked item" or "Recommended buy")
-    cells[2].caption:SetText(pin and bag == pin and "Selected in bags" or "Best in bags")
-    cells[1].value:SetText(buy and (buy.name or buy.item.name) or (hasMarket and "None eligible" or "No auction items"))
+    cells[1].caption:SetText(pin and buy == pin and L["Tracked item"] or L["Recommended buy"])
+    cells[2].caption:SetText(pin and bag == pin and L["Selected in bags"] or L["Best in bags"])
+    cells[1].value:SetText(buy and (buy.name or buy.item.name) or (hasMarket and L["None eligible"] or L["No auction items"]))
     tintLabel(cells[1].value, buy and color.mint or color.muted)
     if bag and bag.item.spell then
         cells[2].value:SetText(bag.name)
     else
-        cells[2].value:SetText(bag and ((bag.name or bag.item.name) .. " ×" .. bag.count) or "None in bags")
+        cells[2].value:SetText(bag and L["%s ×%d"]:format(bag.name or bag.item.name, bag.count) or L["None in bags"])
     end
     cells[1].details:SetText(statText(buy, category, 1))
     cells[2].details:SetText(statText(bag, category, 1))
@@ -1690,12 +1755,13 @@ function A.RefreshOptions()
         if nav.category then
             local enabled = tracked(nav.category)
             check(nav.track, enabled)
-            nav.track.hint = (enabled and "Disable " or "Enable ") .. nav.title:GetText() .. " for this profile."
+            nav.track.hint = (enabled and L["Disable %s for this profile."] or L["Enable %s for this profile."]):format(navigationLabel(nav.category))
         end
     end
     refreshProfile(panel)
     panel.general:SetShown(activePage == "general")
     panel.appearance:SetShown(activePage == "appearance")
+    panel.professions:SetShown(activePage == "professions")
     panel.category:SetShown(category ~= nil)
     if not category then panel.keepTracked:Hide() end
     panel.empty:ClearAllPoints()
@@ -1715,6 +1781,8 @@ function A.RefreshOptions()
         height, used = renderShopping(panel)
     elseif activePage == "appearance" then
         height = renderAppearance(panel)
+    elseif activePage == "professions" then
+        height = renderProfessions(panel)
     else
         height = renderGeneral(panel)
     end

@@ -186,6 +186,10 @@ for _, key in ipairs({"campfire", "sleepingBag"}) do
         label = key == "campfire" and "Campfire" or "Cozy Sleeping Bag"}
     A.state.categories[key] = {rows = {}, tracked = false}
 end
+A.categories[#A.categories + 1] = {key = "fishingLure", label = "Fishing Lure", kind = "weapon", slot = 16, profession = "fishing"}
+A.categories[#A.categories + 1] = {key = "fishingFood", label = "Fishing Food", kind = "food", profession = "fishing"}
+assert(loadfile("AlwaysBuffed/Locale.lua"))("AlwaysBuffed", A)
+assert(loadfile("AlwaysBuffed/Categories.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Status.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Actions.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/BuffBindings.lua"))("AlwaysBuffed", A)
@@ -244,8 +248,17 @@ dispatch("PLAYER_REGEN_ENABLED")
 assert(not A.db.collapsed and tray.shown and bar:GetCenter() == x and not grip.missingGlow.shown)
 -- Saved position is the grip center. A near-right-edge bar must unfold to the left.
 A.db.barAnchorX, A.db.barScale = 460, 1.25
+A.db.barDirection, A.db.barOrientation = nil, "horizontal"
+for _, state in pairs(A.state.categories) do state.tracked = false end
 A.RefreshActions()
+assert(A.db.barOrientation == "horizontal" and A.db.barDirection == nil, "empty layouts leave legacy growth pending")
+for i = 1, 6 do A.state.categories["category" .. i].tracked = true end
+A.RefreshActions()
+assert(A.db.barDirection == "left" and A.db.barOrientation == nil, "legacy horizontal saves preserve their chosen side")
 assert(tray.anchor[1] == "TOPRIGHT" and bar:GetCenter() * 1.25 == 960)
+A.db.barDirection = "right"
+A.RefreshActions()
+assert(tray.anchor[1] == "TOPRIGHT" and A.db.barDirection == "right", "an edge fallback keeps the preference")
 toggle()
 toggle()
 assert(tray.anchor[1] == "TOPRIGHT" and bar:GetCenter() * 1.25 == 960)
@@ -257,7 +270,7 @@ A.RefreshActions()
 assert(not first.activeBorder.shown and second.activeBorder.shown)
 -- Center the grip and leave enough room for all categories in a single column.
 A.db.barAnchorX, A.db.barAnchorY, A.db.barScale = 0, 210, 1
-A.db.barOrientation = "vertical"
+A.db.barDirection = "down"
 A.RefreshActions()
 assert(tray.anchor[1] == "TOPLEFT" and tray.anchor[3] == "BOTTOMLEFT")
 assert(first.anchor[4] == second.anchor[4] and first.anchor[5] > second.anchor[5])
@@ -300,22 +313,23 @@ local function assertOutline(expanded)
     assert(near(px, ox + scale) and near(py, oy + scale) and near(pw, ow - 2 * scale) and near(ph, oh - 2 * scale))
 end
 
-local function setLayout(orientation, scale, x, y)
+local function setLayout(direction, scale, x, y)
     if A.db.barScale == scale then
         A.db.barScale = scale - 0.01
         A.RefreshActions()
     end
-    A.db.barOrientation, A.db.barScale = orientation, scale
+    A.db.barDirection, A.db.barScale = direction, scale
     A.db.barAnchorX, A.db.barAnchorY = x, y
     A.RefreshActions()
 end
 
-local function assertPitch(orientation, scale, direction, wrapped)
+local function assertPitch(direction, scale, wrapped)
     local gripX, gripY = center(grip.icon)
-    local horizontal = orientation == "horizontal"
+    local horizontal = direction == "left" or direction == "right"
+    local step = (direction == "left" or direction == "down") and -1 or 1
     local gripAlong, gripAcross = gripY, gripX
     if horizontal then gripAlong, gripAcross = gripX, gripY end
-    local bands, adjacent = {}, false
+    local bands = {}
     for _, button in ipairs(all) do
         if button.category and button:IsVisible() then
             local x, y = center(button)
@@ -324,10 +338,12 @@ local function assertPitch(orientation, scale, direction, wrapped)
             local key = math.floor(across * 100 + 0.5)
             bands[key] = bands[key] or {}
             table.insert(bands[key], along)
-            if near(across, gripAcross) and near(along, gripAlong + direction * 44 * scale) then adjacent = true end
+            if button == first then
+                assert(near(across, gripAcross) and near(along, gripAlong + step * 44 * scale),
+                    "the first tracked buff is adjacent to the grip in the selected direction")
+            end
         end
     end
-    assert(adjacent, "the first row or column continues the handle pitch")
     local crossPositions = {}
     for cross, band in pairs(bands) do
         table.insert(crossPositions, cross / 100)
@@ -339,11 +355,11 @@ local function assertPitch(orientation, scale, direction, wrapped)
     for i = 2, #crossPositions do assert(near(crossPositions[i] - crossPositions[i - 1], 44 * scale)) end
 end
 
-for _, scenario in ipairs({{"horizontal", -450, 0, 1}, {"horizontal", 450, 0, -1},
-    {"vertical", 0, 220, -1}, {"vertical", 0, -220, 1}}) do
-    local orientation, xOffset, yOffset, direction = unpack(scenario)
+for _, scenario in ipairs({{"right", -450, 0}, {"left", 450, 0},
+    {"down", 0, 220}, {"up", 0, -220}}) do
+    local direction, xOffset, yOffset = unpack(scenario)
     for _, scale in ipairs({0.75, 1, 1.50}) do
-        setLayout(orientation, scale, xOffset, yOffset)
+        setLayout(direction, scale, xOffset, yOffset)
         local gripX, gripY, gripW, gripH = rect(grip.icon)
         local _, _, actionW, actionH = rect(first.icon)
         local _, _, handleW, handleH = rect(bar)
@@ -354,7 +370,7 @@ for _, scenario in ipairs({{"horizontal", -450, 0, 1}, {"horizontal", 450, 0, -1
         assert(near(gripX + gripW / 2, cx) and near(gripY + gripH / 2, cy))
         assert(tray.shown and not grip.missingText.backing.shown and not grip.activeText.backing.shown)
         assertOutline(true)
-        assertPitch(orientation, scale, direction, false)
+        assertPitch(direction, scale, false)
         toggle()
         assert(not tray.shown and grip.icon.shown and grip.missingText.backing.shown and grip.activeText.backing.shown)
         assertOutline(false)
@@ -373,20 +389,22 @@ for _, scenario in ipairs({{"horizontal", -450, 0, 1}, {"horizontal", 450, 0, -1
 end
 
 A.state.categories.campfire.tracked, A.state.categories.sleepingBag.tracked = true, true
-setLayout("horizontal", 1.5, 0, 0)
+-- The preferred edge fits one tile per row, but there is room for only four rows.
+setLayout("right", 1.5, 390, 0)
+assert(A.db.barDirection == "right", "overflow keeps the selected growth direction")
 assertOutline(true)
-assertPitch("horizontal", 1.5, 1, true)
-setLayout("horizontal", 1.5, 20, 0)
-assertOutline(true)
-assertPitch("horizontal", 1.5, -1, true)
-setLayout("vertical", 1.5, 0, 0)
-assertOutline(true)
-assertPitch("vertical", 1.5, -1, true)
-setLayout("vertical", 1.5, 0, -8)
-assertOutline(true)
-assertPitch("vertical", 1.5, 1, true)
+assertPitch("left", 1.5, false)
+setLayout("right", 1.5, 20, -8)
+local fixedAnchor = bar.anchor
+for _, direction in ipairs({"right", "left", "down", "up"}) do
+    A.db.barDirection = direction
+    A.RefreshActions()
+    assert(bar.anchor == fixedAnchor, "direction changes keep the grip at the saved anchor")
+    assertOutline(true)
+    assertPitch(direction, 1.5, true)
+end
 A.state.categories.campfire.tracked, A.state.categories.sleepingBag.tracked = false, false
-setLayout("vertical", 1, 0, 210)
+setLayout("down", 1, 0, 210)
 
 A.db.mouseoverOnly = true
 A.RefreshActions()
@@ -437,10 +455,12 @@ tick()
 assert(not camp.activeBorder.shown and camp.icon.texture == camp.category.icon and camp.timeText.text == "")
 locked = false
 A.db.barAnchorY, A.db.barScale = -190, 0.95
+A.db.barDirection, A.db.barOrientation = nil, "vertical"
 A.RefreshActions()
+assert(A.db.barDirection == "up" and A.db.barOrientation == nil, "legacy vertical saves preserve their chosen side")
 assert(tray.anchor[1] == "BOTTOMLEFT" and tray.anchor[3] == "TOPLEFT")
-assert(first.anchor[5] > second.anchor[5] and camp.anchor[5] > sleep.anchor[5], "upward opening preserves top-to-bottom order")
-A.db.barOrientation = "horizontal"
+assert(first.anchor[5] < second.anchor[5] and camp.anchor[5] < sleep.anchor[5], "upward opening grows away from the grip")
+A.db.barDirection = "right"
 A.RefreshActions()
 assert(sleep.w == camp.w and sleep.w == first.w and sleep.h == first.h)
 camping.bag = nil
@@ -489,7 +509,7 @@ assert(bar.alpha == 0)
 local previousTrayAnchor, previousFirstAnchor = tray.anchor, first.anchor
 entry.bag = {item = {id = 20074}, count = 2, icon = 12}
 A.state.categories.category2.applicable = false
-A.db.barOrientation, A.db.barScale = "vertical", 1.25
+A.db.barDirection, A.db.barScale = "up", 1.25
 A.RefreshActions()
 assert(first["*item1"] == "item:3664" and first.icon.texture == 11 and second:IsVisible())
 assert(tray.anchor == previousTrayAnchor and first.anchor == previousFirstAnchor and bar:GetScale() == 0.95)
@@ -523,4 +543,35 @@ A.RefreshActions()
 assert(not tray:IsVisible())
 AlwaysBuffed_ToggleBar()
 assert(not A.db.collapsed and tray:IsVisible(), "legacy scripted toggles apply immediately outside combat")
+local lure, fishingFood = AlwaysBuffedAction_fishingLure, AlwaysBuffedAction_fishingFood
+local gripAnchor, liveScale = bar.anchor, bar:GetScale()
+A.state.categories.fishingLure = {tracked = true, bag = {item = {id = 6532}, count = 1, icon = 28}}
+A.state.categories.fishingFood = {tracked = true, bag = {item = {id = 33867}, count = 1, icon = 29}}
+A.RefreshActions()
+assert(not lure:IsVisible() and not lure["*item1"], "combat loadout excludes and disarms the lure")
+A.db.collapsed = true
+A.state.barProfession = "fishing"
+A.RefreshActions()
+assert(bar.anchor == gripAnchor and bar:GetScale() == liveScale and A.db.barDirection == "up")
+assert(grip.missingText.text == "2" and grip.activeText.text == "0", "folded grip counts only the selected profession")
+assert(not first:IsVisible() and not first["*item1"], "switching disarms the previous tray")
+locked = true
+toggle()
+assert(lure:IsVisible() and fishingFood:IsVisible() and not first:IsVisible())
+assert(lure["*item1"] == "item:6532" and lure["*target-slot1"] == 16, "the secure toggle opens the prepared fishing loadout")
+toggle()
+assert(grip.missingText.text == "2" and not lure:IsVisible())
+locked = false
+A.state.barProfession = nil
+A.RefreshActions()
+toggle()
+assert(first:IsVisible() and first["*item1"] == "item:20074" and not lure:IsVisible() and not lure["*item1"])
+assert(bar.anchor == gripAnchor and bar:GetScale() == liveScale and A.db.barDirection == "up")
+A.state.barProfession = "herbalism"
+A.RefreshActions()
+assert(bar:IsVisible() and not tray:IsShown() and not first:IsShown() and not first["*item1"],
+    "an empty profession keeps the grip and clears the previous actions")
+toggle()
+toggle()
+assert(bar:IsVisible() and not tray:IsShown(), "the secure toggle cannot reveal a previous loadout on an empty bar")
 print("Buff bar passed: secure combat clicks and key routing, deferred loadout, stable geometry, hover and aura timers.")

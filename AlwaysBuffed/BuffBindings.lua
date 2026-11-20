@@ -1,4 +1,5 @@
 local _, A = ...
+local L = A.L
 
 local PREFIX = "ALWAYSBUFFED_USE_"
 local BAR_TOGGLE = "ALWAYSBUFFED_TOGGLE_BAR"
@@ -13,10 +14,10 @@ end
 
 local function publishLabels()
     BINDING_HEADER_ALWAYSBUFFED = "AlwaysBuffed"
-    BINDING_NAME_ALWAYSBUFFED_TOGGLE_BAR = "Toggle buff bar"
+    BINDING_NAME_ALWAYSBUFFED_TOGGLE_BAR = L["Toggle buff bar"]
     for _, category in ipairs(A.categories) do
         categories[category.key] = category
-        _G["BINDING_NAME_" .. command(category.key)] = "Use " .. category.label
+        _G["BINDING_NAME_" .. command(category.key)] = L["Use %s"]:format(category.label)
     end
 end
 
@@ -56,7 +57,8 @@ end
 local function refreshAction(button, category)
     local states = A.state and A.state.categories
     local plan = states and states[category.key]
-    local row = plan and plan.tracked and plan.applicable ~= false and plan.bag
+    local row = plan and plan.tracked and plan.applicable ~= false
+        and (not category.profession or A.OnActiveBar(category)) and plan.bag
     A.SetAction(button, category, row or nil)
 end
 
@@ -117,7 +119,7 @@ function A.GetBarToggleBinding()
 end
 
 local function setNativeBinding(binding, chord, proxy)
-    if InCombatLockdown() then return false, "Change buff shortcuts after combat." end
+    if InCombatLockdown() then return false, L["Change buff shortcuts after combat."] end
     if chord == "" then chord = nil end
 
     local oldKeys = { GetBindingKey(binding) }
@@ -127,14 +129,14 @@ local function setNativeBinding(binding, chord, proxy)
         if retired or isOurAction(action, binding, proxy) then action = GetBindingAction(chord, true) end
         if not (retired and A.IsRetiredBuffBinding(action)) and not isOurAction(action, binding, proxy) then
             local label = _G["BINDING_NAME_" .. action] or action
-            return false, ("%s is already bound to %s."):format(chord, label)
+            return false, L["%s is already bound to %s."]:format(chord, label)
         end
     end
 
     updating = true
     if chord and not SetBinding(chord, binding) then
         updating = false
-        return false, "That key cannot be bound."
+        return false, L["That key cannot be bound."]
     end
     for _, oldKey in ipairs(oldKeys) do
         if oldKey ~= chord then SetBinding(oldKey) end
@@ -146,7 +148,7 @@ local function setNativeBinding(binding, chord, proxy)
 end
 
 function A.SetBuffBinding(key, chord)
-    if not categories[key] then return false, "Choose a buff category." end
+    if not categories[key] then return false, L["Choose a buff category."] end
     local proxy = chord and chord ~= "" and buttonName(key, chord)
     return setNativeBinding(command(key), chord, proxy)
 end

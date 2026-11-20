@@ -132,6 +132,7 @@ local A = {
         { key = "weaponOffhand", label = "Off-Hand Enhancement", kind = "weapon", slot = 17 },
         { key = "scrollIntellect", label = "Intellect", kind = "item" },
         { key = "campfire", label = "Campfire", kind = "reminder", icon = 135805 },
+        { key = "fishingLure", label = "Fishing Lure", kind = "weapon", slot = 16, profession = "fishing" },
     },
 }
 local states = A.state.categories
@@ -140,6 +141,8 @@ states.weaponOffhand = { tracked = true, bag = { item = { id = 2 }, count = 5, n
 states.scrollIntellect = { tracked = true, bag = { item = { id = 3 }, count = 2, name = "Scroll" } }
 states.campfire = { tracked = true, bag = { item = { id = 4, spell = 7 }, name = "Campfire" } }
 
+assert(loadfile("AlwaysBuffed/Locale.lua"))("AlwaysBuffed", A)
+assert(loadfile("AlwaysBuffed/Categories.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Status.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Actions.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/BuffBindings.lua"))("AlwaysBuffed", A)
@@ -343,6 +346,33 @@ tick()
 assert(not findRegion("texture", 99301))
 assert(findRegion("text", "Ready in 13s"))
 assert(A.ToggleWheel() and #actions == 10)
+
+-- A profession switch cancels a held combat gesture and refreshes an open preview.
+states.food.tracked = true
+states.sleepingBag.tracked = false
+states.fishingLure = { tracked = true, bag = { item = { id = 6532 }, count = 1, name = "Bright Baubles" } }
+x, y = cx, cy
+useKey(true)
+assert(wheel:IsShown())
+A.state.barProfession = "fishing"
+A.RefreshWheel()
+assert(not wheel:IsShown(), "switching loadouts cancels the previous held gesture")
+y = cy + 100
+useKey(false)
+assert(#actions == 10, "releasing the previous loadout gesture sends no action")
+assert(A.ToggleWheel() and findRegion("text", "Fishing Lure") and not findRegion("text", "Food"))
+click(preview, "LeftButton", false)
+assert(#actions == 11 and actions[11].item == "item:6532" and actions[11].slot == 16)
+assert(A.ToggleWheel() and findRegion("text", "Fishing Lure"))
+A.state.barProfession = nil
+click(preview, "LeftButton", false)
+assert(#actions == 11, "clicking an old loadout snapshot sends no action even before refresh")
+A.state.barProfession = "fishing"
+assert(A.ToggleWheel() and findRegion("text", "Fishing Lure"))
+A.state.barProfession = nil
+A.RefreshWheel()
+assert(findRegion("text", "Food") and not findRegion("text", "Fishing Lure"))
+assert(A.ToggleWheel())
 
 assert(A.SetWheelBinding("SHIFT-H"))
 assert(not bindings["CTRL-G"] and not overrides["CTRL-G"] and not overrides["ALT-K"])

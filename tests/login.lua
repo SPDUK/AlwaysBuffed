@@ -14,6 +14,7 @@ SlashCmdList = {}
 function UnitClass() return class, class end
 function UnitLevel() return 32 end
 function GetLocale() return "enUS" end
+function strtrim(text) return text:match("^%s*(.-)%s*$") end
 function GetTime() return 1000 end
 function InCombatLockdown() return false end
 function GetInventoryItemID() return 99 end
@@ -45,8 +46,32 @@ local preferences = {
 }
 AlwaysBuffedDB = {preferences=preferences, profile="combat"}
 event(nil, "PLAYER_LOGIN")
+local function chat(input)
+    local alias, args = input:match("^(%S+)%s*(.*)$")
+    for name, handler in pairs(SlashCmdList) do
+        local prefix, index = "SLASH_" .. name, 1
+        while _G[prefix .. index] do
+            if _G[prefix .. index] == alias then return handler(args) end
+            index = index + 1
+        end
+    end
+    error("Unregistered slash command: " .. alias)
+end
+
+do
+    local toggleOptions, toggleWheel = A.ToggleOptions, A.ToggleWheel
+    local opened, wheeled = 0, 0
+    A.ToggleOptions = function() opened = opened + 1 end
+    A.ToggleWheel = function() wheeled = wheeled + 1 end
+    for _, alias in ipairs({"/alwaysbuffed", "/ab"}) do
+        chat(alias)
+        chat(alias .. " wheel")
+    end
+    assert(opened == 2 and wheeled == 2, "both registered aliases dispatch to settings and the wheel")
+    A.ToggleOptions, A.ToggleWheel = toggleOptions, toggleWheel
+end
 assert(A.state.class == "ROGUE" and A.state.profile.key == "combat")
-assert(A.db.barOrientation == "horizontal" and A.db.mouseoverOnly == false)
+assert(A.db.mouseoverOnly == false)
 assert(A.db.preferences.combat.elixir.pin == nil)
 assert(A.db.preferences.combat.elixirAttackPower.pin == 12820)
 assert(A.db.preferences.combat.elixirAttackPower.enabled and A.db.preferences.combat.elixirAttackPower.cheapest)
@@ -62,10 +87,13 @@ assert(A.state.categories.imbue.tracked and A.state.categories.imbueOffhand.trac
 A.db.barOrientation, A.db.mouseoverOnly = "vertical", true
 event(nil, "PLAYER_LOGIN")
 assert(A.db.barOrientation == "vertical" and A.db.mouseoverOnly == true)
-A.db.barOrientation = "unknown"
+A.db.barOrientation, A.db.barDirection = "unknown", "up"
 event(nil, "PLAYER_LOGIN")
-assert(A.db.barOrientation == "horizontal")
+assert(A.db.barOrientation == nil and A.db.barDirection == "up")
 assert(A.db.preferences.combat.elixirAttackPower.pin == 12820)
+A.db.barDirection = "unknown"
+event(nil, "PLAYER_LOGIN")
+assert(A.db.barDirection == nil)
 print("Release TOC, cold login and per-profile preference migration passed.")
 
 class = "HUNTER"
@@ -112,3 +140,195 @@ after()
 assert(food().upgrade and food().upgrade.item.id == 13932 and food().bag.item.id == 3664,
     "a stronger later unlock brings the badge back while the tracked item stays assigned")
 print("Tracked food preserves its action across unlocks, acquiring upgrades, acknowledgment, and reload.")
+
+-- Load the profession feature through the same event frame and catalog as a player.
+class, level = "ROGUE", 32
+local dagger, pole, uncachedDagger, fishingHat, fishingBoots = 2092, 6256, 2494, 259846, 19969
+local gear, subclasses = {[16] = dagger, [17] = dagger}, {[dagger] = 15, [pole] = 20}
+local itemRequests, auras = {}, {}
+local now, fishingSkill, locked = 1000, 1, false
+local cooldownStart, cooldownDuration, gearTimer
+local refreshes = 0
+function GetTime() return now end
+function InCombatLockdown() return locked end
+function GetInventoryItemID(_, slot) return gear[slot] end
+function GetInventoryItemCooldown(_, slot)
+    assert(slot == 1, "read the cooldown from the hat's equipment slot")
+    return cooldownStart or 0, cooldownDuration or 0
+end
+function C_Item.GetItemInfoInstant(id)
+    if id == uncachedDagger and not subclasses[id] then return end
+    return nil, nil, nil, nil, 1, subclasses[id] and 2 or 0, subclasses[id] or 0
+end
+function C_Item.RequestLoadItemDataByID(id) itemRequests[id] = true end
+function C_SkillInfo.GetSkillLineInfoByID(id)
+    return id == 356 and {rank = fishingSkill} or nil
+end
+function C_UnitAuras.GetAuraDataByIndex(_, index) return auras[index] end
+function C_Spell.GetSpellName(id) return id == 19705 and "Well Fed" or tostring(id) end
+function C_Timer.NewTimer(delay, callback)
+    gearTimer = {delay = delay, fire = callback, Cancel = noop}
+    return gearTimer
+end
+A.RefreshActions = function() refreshes = refreshes + 1 end
+A.RefreshGripCounts = noop
+carried = {[6529] = 2, [6530] = 1, [6533] = 1, [4594] = 1, [fishingBoots] = 1}
+
+local function temporary(id)
+    return {hasEnchant = true, enchantType = Enum.ItemEnchantType.Temporary, enchantID = id, timeLeft = 60000}
+end
+local poison = {hasEnchant = true, enchantType = Enum.ItemEnchantType.Imbue, enchantID = 323, timeLeft = 100000}
+local mainEnchants, offEnchants = {temporary(40), poison}, {temporary(40)}
+function C_Item.GetWeaponEnchantInfo(hand)
+    return hand == Enum.WeaponSlot.MainHand and mainEnchants or offEnchants
+end
+
+local function process(name, ...)
+    assert(not after, "flush any previous event before processing " .. name)
+    event(nil, name, ...)
+    local callback = assert(after, "expected a queued update for " .. name)
+    after = nil
+    callback()
+end
+local function plan(key) return assert(A.state.categories[key]) end
+local function lure() return plan("fishingLure") end
+local function rowFor(category, id)
+    for _, row in ipairs(plan(category).rows) do
+        if row.item.id == id then return row end
+    end
+    error("missing catalog row " .. id .. " in " .. category)
+end
+
+AlwaysBuffedDB, after = {barMode = "comprehension", fishingGearItemID = -1}, nil
+event(nil, "PLAYER_LOGIN")
+assert(A.db.barMode == "auto" and not A.db.fishingGearItemID, "invalid saved mode and equipment marker are reset")
+assert(not A.state.barProfession, "a melee loadout uses the combat bar automatically")
+assert(plan("weapon").active == "Rough Sharpening Stone" and plan("imbue").active == "Instant Poison")
+assert(not lure().applicable and not lure().active and not lure().bag, "combat weapons cannot receive or report a lure")
+A.SetBarMode("comprehension")
+assert(A.db.barMode == "auto", "a Rogue cannot select the Mage bar")
+
+gear[16], mainEnchants = pole, {temporary(263), poison}
+process("PLAYER_EQUIPMENT_CHANGED", 16)
+assert(A.db.barMode == "auto" and A.state.barProfession == "fishing", "a pole switches the auto bar by item subtype")
+assert(lure().bag.item.id == 6529 and lure().active == "+25 Fishing" and lure().expires == 1060)
+assert(not plan("weapon").active and not plan("imbue").active, "the pole clears the old main-hand combat enchants")
+assert(plan("weaponOffhand").active == "Rough Sharpening Stone", "the other hand keeps its own enchant")
+assert(rowFor("fishingLure", 6530).reason == "Requires Fishing 50")
+assert(rowFor("fishingLure", 6533).reason == "Requires Fishing 100")
+fishingSkill = 55
+process("SKILL_LINES_CHANGED")
+assert(lure().bag.item.id == 6530, "gaining Fishing skill promotes the strongest eligible carried lure")
+fishingSkill = 100
+process("SKILL_LINES_CHANGED")
+assert(lure().bag.item.id == 6533, "a +100 fishing lure outranks the lower bonuses")
+mainEnchants = {temporary(40), poison}
+process("UNIT_INVENTORY_CHANGED", "player")
+assert(not lure().active and not plan("weapon").active and not plan("imbue").active,
+    "an unrelated enchant reported on a pole is neither a recognized lure nor a combat enchant")
+
+local normalMeal = {spellId = 19705, name = "Well Fed", duration = 900, expirationTime = 1600, auraInstanceID = 1}
+local fishingMeal = {spellId = 1249521, name = "Well Fed", duration = 900, expirationTime = 1900, auraInstanceID = 2}
+auras = {normalMeal}
+process("UNIT_AURA", "player")
+assert(not plan("fishingFood").active and plan("food").active == "Well Fed",
+    "ordinary Well Fed does not activate the fishing food slot")
+auras = {fishingMeal, normalMeal}
+process("UNIT_AURA", "player")
+assert(plan("fishingFood").bag.item.id == 4594 and plan("fishingFood").activeSpellID == 1249521
+    and plan("fishingFood").expires == 1900, "same-name auras cannot obscure the native fishing food spell and expiry")
+auras = {normalMeal}
+process("UNIT_AURA", "player", {removedAuraInstanceIDs = {2}})
+assert(not plan("fishingFood").active and plan("food").active, "fishing food clears while ordinary Well Fed remains")
+
+gear[16] = uncachedDagger
+process("PLAYER_EQUIPMENT_CHANGED", 16)
+assert(itemRequests[uncachedDagger] and A.state.barProfession == "fishing", "unknown gear does not eject the fishing bar")
+subclasses[uncachedDagger] = 15
+process("ITEM_DATA_LOAD_RESULT", uncachedDagger, true)
+assert(not A.state.barProfession and plan("weapon").active == "Rough Sharpening Stone",
+    "late item metadata restores the combat bar and the ordinary enchant")
+
+local beforeCombat = refreshes
+locked, gear[16] = true, pole
+process("PLAYER_EQUIPMENT_CHANGED", 16)
+assert(not A.state.barProfession and refreshes == beforeCombat, "auto equipment changes defer bar and action rebuilds in combat")
+locked = false
+process("PLAYER_REGEN_ENABLED")
+assert(A.state.barProfession == "fishing" and refreshes > beforeCombat, "leaving combat applies the deferred equipment change")
+locked, beforeCombat = true, refreshes
+A.SetBarMode("herbalism")
+assert(A.db.barMode == "herbalism" and A.state.barProfession == "fishing" and refreshes == beforeCombat,
+    "manual mode is saved while the effective bar stays fixed in combat")
+locked = false
+process("PLAYER_REGEN_ENABLED")
+assert(A.state.barProfession == "herbalism" and refreshes > beforeCombat, "leaving combat activates the saved manual mode")
+A.SetBarMode("mining")
+assert(A.state.barProfession == "mining", "Mining can be selected without changing equipment")
+A.SetBarMode("combat")
+assert(not A.state.barProfession, "manual Combat overrides a pole")
+
+gear[16] = dagger
+A.SetBarMode("auto")
+chat(("/alwaysbuffed fishgear |cffffffff|Hitem:%d:0|h[Nat Pagle's Extreme Anglin' Boots]|h|r"):format(fishingBoots))
+assert(A.db.fishingGearItemID == fishingBoots and not A.state.barProfession, "merely carrying marked gear does not activate Fishing")
+gear[8] = fishingBoots
+process("PLAYER_EQUIPMENT_CHANGED", 8)
+assert(A.state.barProfession == "fishing" and not lure().applicable, "marked equipment activates Fishing without turning a dagger into a pole")
+A.SetBarMode("combat")
+assert(not A.state.barProfession, "manual Combat overrides marked gear as well")
+A.SetBarMode("auto")
+assert(A.state.barProfession == "fishing", "restoring auto uses the currently marked equipment")
+gear[8] = nil
+process("PLAYER_EQUIPMENT_CHANGED", 8)
+assert(not A.state.barProfession, "taking off the marked item returns to combat")
+chat("/ab fishgear clear")
+gear[8] = fishingBoots
+process("PLAYER_EQUIPMENT_CHANGED", 8)
+assert(not A.db.fishingGearItemID and not A.state.barProfession, "clearing the marker stops the item from switching the bar")
+
+gear[16], carried[fishingHat], carried[6530], carried[6533] = pole, 1, nil, nil
+fishingSkill = 1
+process("PLAYER_EQUIPMENT_CHANGED", 16)
+assert(rowFor("fishingLure", fishingHat).reason == "Must be equipped" and lure().bag.item.id == 6529,
+    "a fishing hat in the bag is ineligible")
+carried[fishingHat], gear[1] = nil, fishingHat
+process("PLAYER_EQUIPMENT_CHANGED", 1)
+assert(lure().bag.item.id == fishingHat, "a ready equipped hat wins over an equally strong consumable")
+carried[6529] = nil
+process("BAG_UPDATE_DELAYED")
+assert(lure().bag.item.id == fishingHat, "the equipped hat can apply a lure without any bag items")
+carried[6529], cooldownStart, cooldownDuration = 1, now, 10
+process("BAG_UPDATE_COOLDOWN")
+assert(rowFor("fishingLure", fishingHat).reason == "On cooldown" and lure().bag.item.id == 6529,
+    "a cooling-down hat falls back to the available bag lure")
+assert(gearTimer and gearTimer.delay == 10)
+now, carried[6529] = now + 10, nil
+gearTimer.fire()
+assert(lure().bag.item.id == fishingHat, "the cooldown timer restores the equipped hat without another event")
+print("Profession login, equipment switches, combat deferral, lure ranks and cooldowns, and fishing food auras passed.")
+
+-- Owned sources and existing auras are independent. An empty inventory still
+-- reports a known gathering buff, including one received from a shared camp.
+level, carried = 40, {[10841] = 1}
+A.SetBarMode("herbalism")
+assert(plan("herbalismTea").bag.item.id == 10841 and not plan("herbalismTea").buy)
+assert(not plan("herbalismDraught").buy and not plan("miningDraught").buy)
+auras = {
+    {spellId = 1250887, name = "Revealing Draught", duration = 1800, expirationTime = now + 1600},
+    {spellId = 1249907, name = "Well Fed", duration = 900, expirationTime = now + 850},
+    {spellId = 1280342, name = "Rare Fishing", duration = 3600, expirationTime = now + 3400},
+}
+process("UNIT_AURA", "player")
+assert(plan("herbalismTea").activeSpellID == 1249907 and not plan("fishingFood").active)
+A.SetBarMode("mining")
+assert(plan("miningDraught").expires == now + 1600 and plan("herbalismDraught").activeSpellID == 1250887)
+assert(plan("fishingCamp").activeSpellID == 1280342 and not plan("fishingCamp").bag)
+assert(not plan("comprehensionScroll").tracked, "only Mages have a Comprehension category")
+class, carried, AlwaysBuffedDB = "MAGE", {[215257] = 1}, {barMode = "comprehension"}
+auras = {{spellId = 435563, name = "Comprehension", duration = 3600, expirationTime = now + 3550}}
+event(nil, "PLAYER_LOGIN")
+local scroll = plan("comprehensionScroll")
+assert(A.state.barProfession == "comprehension" and scroll.tracked and scroll.bag.item.id == 215257)
+assert(scroll.activeSpellID == 435563 and scroll.expires == now + 3550)
+print("Shared camp, Herbalism, Mining and Mage Comprehension tracking passed.")

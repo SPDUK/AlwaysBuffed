@@ -93,6 +93,8 @@ local A = {
     RefreshOptions = function() end, InitBuffBindings = function() end, RefreshBuffBindings = function() end,
 }
 
+assert(loadfile("AlwaysBuffed/Locale.lua"))("AlwaysBuffed", A)
+assert(loadfile("AlwaysBuffed/Categories.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Status.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Actions.lua"))("AlwaysBuffed", A)
 A.InitActions()

@@ -3,6 +3,7 @@ local A = {}
 local function loadAddon(filename)
     assert(loadfile("AlwaysBuffed/" .. filename .. ".lua"))("AlwaysBuffed", A)
 end
+loadAddon("Locale")
 loadAddon("Planner")
 loadAddon("Game")
 loadAddon("Profiles")

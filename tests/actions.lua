@@ -5,6 +5,7 @@ function UnitClass() return "Hunter", "HUNTER" end
 RAID_CLASS_COLORS = { HUNTER = { r = 0.67, g = 0.83, b = 0.45 } }
 local locked = false
 function InCombatLockdown() return locked end
+assert(loadfile("AlwaysBuffed/Locale.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Theme.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Actions.lua"))("AlwaysBuffed", A)
 
