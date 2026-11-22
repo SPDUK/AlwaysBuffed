@@ -306,7 +306,7 @@ function WheelExample({ onClose }: { onClose: () => void }) {
         )}
       </p>
       <p className="guide-in-game">
-        Outside combat, open the clickable wheel with <code>/alwaysbuffed wheel</code> or <code>/ab wheel</code>. Set a shortcut in{' '}
+        Outside combat, Shift-left-click the bar grip or type <code>/ab wheel</code>. The wheel fades in over a quarter of a second and accepts input immediately. Right-click the grip for settings. Set a shortcut in{' '}
         <strong>General</strong> to hold, aim at a slice, and release. Return to the center or press Escape to
         cancel.
       </p>

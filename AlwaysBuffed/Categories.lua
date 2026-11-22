@@ -28,6 +28,29 @@ function A.OnActiveBar(category)
     return A.CategoryBar(category) == A.state.barProfession
 end
 
+function A.ResolveBarProfession(ctx)
+    local mode = A.db.barMode or "auto"
+    if mode ~= "auto" then return mode ~= "combat" and mode or nil end
+
+    -- Keep an opted-in Fishing bar while the client loads the new main-hand item.
+    local waitingForGear = not ctx.mainHandKnown and A.state.barProfession == "fishing"
+    local markedGear = A.db.fishingGearItemID
+    if not waitingForGear and ctx.weapons[16] ~= "fishingPole"
+        and not (markedGear and A.game.HasFishingGear(markedGear)) then return nil end
+
+    for _, category in ipairs(A.categories) do
+        if category.profession == "fishing" and A.state.categories[category.key].enabled then
+            return "fishing"
+        end
+    end
+end
+
+function A.HandLabel(slot)
+    if slot == 16 then return L["MH"] end
+    if slot == 17 then return L["OH"] end
+    return ""
+end
+
 local generic = { L["Main-Hand Weapon Imbue"], L["Off-Hand Weapon Imbue"], L["Main-Hand Imbue"], L["Off-Hand Imbue"] }
 local weaponBuffs = {
     ROGUE = { L["Main-Hand Poison"], L["Off-Hand Poison"] },

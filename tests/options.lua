@@ -137,21 +137,16 @@ function A.SetBarMode(mode)
     A.Update()
 end
 function A.Update()
-    local mode = A.db.barMode or "auto"
-    if mode == "auto" then
-        A.state.barProfession = weapons[16] == "fishingPole" and "fishing" or nil
-    else
-        A.state.barProfession = mode ~= "combat" and mode or nil
-    end
     if A.db.profile then
         A.state.profile = A.SelectProfile(A.profiles[A.state.class], A.db.profile, {})
     end
     local ctx = {class = A.state.class, level = A.state.level, reminders = A.db.reminders,
-        weapons = weapons, skill = function() return 1 end, known = function() return false end,
+        weapons = weapons, mainHandKnown = true, skill = function() return 1 end, known = function() return false end,
         info = function(item) return {name = item.name, count = bagCounts[item.id] or 0} end}
     for _, category in ipairs(A.categories) do
         A.state.categories[category.key] = A.PlanCategory(category, A.catalog[category.key], ctx, A.Prefs(category.key), A.state.profile)
     end
+    A.state.barProfession = A.ResolveBarProfession(ctx)
     A.RefreshOptions()
 end
 
@@ -241,8 +236,10 @@ equal(professionPage.modes.comprehension, nil, "class-specific bar is unavailabl
 equal(professionPage.links.comprehensionScroll, nil, "class-specific category is absent from the Hunter hub")
 click(professionPage.links.fishingLure)
 equal(panel.heading:GetText(), "Fishing Lure", "profession link opens the regular category")
+equal(panel.category.track.checked, false, "Fishing Lure starts unchecked")
+click(panel.category.track)
+equal(nav.fishingLure.track.checked, true, "opting in also checks the sidebar control")
 equal(panel.subheading:GetText(), "Shown on the Fishing bar.", "inactive profession remains browsable with context")
-equal(panel.category.track.checked, true, "profession categories are tracked by default")
 local lureShortcut = panel.category.shortcut
 equal(lureShortcut.status:GetText(), "Use this category’s selected item or spell while its profession bar is active.",
     "profession shortcuts explain when they can be used")
@@ -250,10 +247,8 @@ click(lureShortcut.pick)
 panel.capture:Fire("OnKeyDown", "L")
 equal(A.GetBuffBinding("fishingLure"), "ALT-L", "profession shortcuts can be set outside their bar mode")
 click(lureShortcut.clear)
-click(panel.category.track)
-equal(nav.fishingLure.track.checked, false, "profession tracking can be turned off outside its mode")
 click(panel.category.restore)
-equal(nav.fishingLure.track.checked, true, "restoring defaults re-enables the profession category")
+equal(nav.fishingLure.track.checked, false, "restoring defaults turns profession tracking off")
 local lure = A.catalog.fishingLure[1]
 click(panel.category.showUnusable)
 local professionRanks = panel.category.groupHeaders
@@ -279,6 +274,8 @@ click(professionPage.modes.fishing)
 equal(A.db.barMode, "fishing", "specific profession mode can be selected")
 equal(professionPage.activeBar:GetText(), "Active bar: Fishing", "selector shows the active profession")
 click(professionPage.links.fishingLure)
+equal(panel.category.track.checked, false, "selecting Fishing mode does not enable the lure")
+click(panel.category.track)
 equal(panel.subheading:GetText(), "Requires a fishing pole", "lures explain their equipment requirement")
 weapons[16] = "fishingPole"
 A.Update()
@@ -289,6 +286,8 @@ click(nav.professions)
 equal(professionPage.modes.mining, nil, "profession settings omit Mining")
 click(professionPage.links.herbalismTea)
 equal(panel.heading:GetText(), "Herbalism Tea", "the Herbalism category is still browsable from its hub link")
+equal(panel.category.track.checked, false, "Herbalism Tea starts unchecked")
+click(panel.category.track)
 equal(panel.subheading:GetText(), "Shown on the Combat bar.", "the Herbalism category explains its inactive bar")
 click(panel.category.showUnusable)
 equal(professionRanks.utility:IsShown(), true, "Herbalism also uses the Utility group")
@@ -301,6 +300,10 @@ weapons[16] = "fishingPole"
 A.Update()
 equal(professionPage.modes.auto.selected, true, "an equipment change preserves the automatic preference")
 equal(professionPage.activeBar:GetText(), "Active bar: Fishing", "automatic displays the equipped profession bar")
+click(nav.fishingLure.track)
+equal(professionPage.activeBar:GetText(), "Active bar: Combat", "unchecking the last Fishing buff restores Combat with the pole equipped")
+click(nav.fishingFood.track)
+equal(professionPage.activeBar:GetText(), "Active bar: Fishing", "checking a Fishing buff switches back without re-equipping the pole")
 click(professionPage.modes.combat)
 equal(professionPage.activeBar:GetText(), "Active bar: Combat", "manual combat overrides fishing equipment")
 weapons[16] = "sharp"

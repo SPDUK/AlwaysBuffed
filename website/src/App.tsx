@@ -127,9 +127,9 @@ const screenshots = {
   },
   wheel: {
     src: import.meta.env.BASE_URL + 'screenshots/wheel.webp',
-    alt: 'AlwaysBuffed radial wheel in Southshore, with gold borders on active weapon buffs and Well-Rested.',
-    width: 430,
-    height: 432,
+    alt: 'Buff wheel in Booty Bay with two active timers, MH and OH weapon labels, and the off-hand slice highlighted.',
+    width: 292,
+    height: 292,
   },
 } satisfies Record<GuidePage, { src: string; alt: string; width: number; height: number }>;
 
@@ -289,7 +289,7 @@ const guides = [
   {
     id: 'wheel',
     title: 'Buff before the pull',
-    body: 'Hold your wheel shortcut, aim at a slice, and release to use a carried item outside combat.',
+    body: 'Shift-click the bar grip to open the wheel, or hold your shortcut, aim, and release to use a buff.',
     action: 'Try the buff wheel',
   },
 ] as const;
@@ -347,22 +347,22 @@ const questions = [
   [
     'How do I switch to Fishing or another profession?',
     <>Type <code>/alwaysbuffed</code> or <code>/ab</code> and select <strong>Professions</strong>.
-      In <strong>Automatic</strong> mode, equipping any fishing pole switches your bar, wheel, and shopping
-      list to Fishing. Putting it away restores Combat. Track lures such as Nightcrawlers, fishing food,
+      Profession tracking starts off for each profile. Enable at least one Fishing buff. In <strong>Automatic</strong> mode, equipping a
+      fishing pole then switches your bar, wheel, and shopping list to Fishing. Track lures such as Nightcrawlers, fishing food,
       the Shiny Silver Coin, and Fishing Rack or Hut bonuses under <strong>Utility</strong>.
       Mages can select Comprehension to track its skill scroll.</>,
   ],
   [
     'Where does Herbalism Tea appear?',
-    <>Look on the default Combat bar. Trained herbalists start with the reminder enabled. Anyone can change
-      it under <strong>Professions → Herbalism Tea</strong>, with Find Herbs on or off. Drink Goldthorn Tea
+    <>Enable it under <strong>Professions → Herbalism Tea</strong> to show it on the default Combat bar.
+      This works with Find Herbs on or off. Drink Goldthorn Tea
       for 10 seconds to gain +15 Herbalism for 15 minutes. Version 1.1.1 removed the hidden-herb and
       hidden-mining reminders. Characters who had selected either gathering bar return to Automatic.</>,
   ],
   [
     'Can other gear switch me to the Fishing bar?',
-    <>Type <code>/ab fishgear</code> followed by an item link or ID. Equipping that item selects Fishing
-      in <strong>Automatic</strong> mode. Use <code>/ab fishgear clear</code> to remove it.
+    <>Type <code>/ab fishgear</code> followed by an item link or ID. In <strong>Automatic</strong> mode,
+      equipping that item selects Fishing if you have a Fishing buff enabled. Use <code>/ab fishgear clear</code> to remove it.
       Both commands also work with <code>/alwaysbuffed</code>. Applying a lure requires a fishing pole.</>,
   ],
   [

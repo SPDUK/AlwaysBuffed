@@ -172,7 +172,7 @@ local function makeAction(parent, category, size)
     if category.slot then
         local hand = font(button, 10, "OUTLINE", 10)
         hand:SetPoint("BOTTOMRIGHT", -3, 4)
-        hand:SetText(category.slot == 17 and L["OH"] or L["MH"])
+        hand:SetText(A.HandLabel(category.slot))
         button.handText = hand
     end
     inset(solid(button, "HIGHLIGHT", C.text, 0.16), button, 1)
@@ -576,8 +576,8 @@ local function gripTooltip(self)
         GameTooltip:AddLine(L["%d active"]:format(activeCount), unpack(C.mint))
     end
     if not A.db.locked then GameTooltip:AddLine(L["Drag to move."]) end
-    GameTooltip:AddLine(L["Shift-click for settings."])
-    if A.db.showWheel then GameTooltip:AddLine(L["Right-click for the wheel."]) end
+    GameTooltip:AddLine(L["Right-click for settings."])
+    if A.db.showWheel then GameTooltip:AddLine(L["Shift-click for the wheel."]) end
     GameTooltip:Show()
 end
 
@@ -696,8 +696,8 @@ function A.InitActions()
     tintGrip()
     solid(grip, "HIGHLIGHT", C.text, 0.13):SetAllPoints(face)
     grip:SetScript("PostClick", function(_, button)
-        if button == "RightButton" then A.ToggleWheel()
-        elseif IsShiftKeyDown() then A.ToggleOptions()
+        if button == "RightButton" then A.ToggleOptions()
+        elseif button == "LeftButton" and IsShiftKeyDown() then A.ToggleWheel()
         end
     end)
     grip:SetScript("OnEnter", gripTooltip)

@@ -1,12 +1,12 @@
 # Profession buffs
 
-Type `/alwaysbuffed` or `/ab` in chat, select **Professions** in the sidebar, and choose a **Bar mode**. The buff bar, wheel, and shopping list follow the selected loadout. Open a profession’s category to choose which buffs to track and set its shortcut. Category choices are saved by profile.
+Type `/alwaysbuffed` or `/ab` in chat, select **Professions** in the sidebar, and choose a **Bar mode**. The buff bar, wheel, and shopping list follow the selected loadout. All profession categories start unchecked. Open a category to enable tracking for your profile and set its shortcut.
 
 ## Fishing
 
 Each Fishing category lists its items under **Utility** for every spec. Lures are ranked by Fishing bonus. A usable lure you explicitly track takes priority.
 
-**Automatic** switches to the Fishing bar when you equip a fishing pole in your main hand. For other fishing gear, use `/alwaysbuffed fishgear <item link or ID>` or `/ab fishgear <item link or ID>` to register one extra item for your character. Equipping it in any slot selects Fishing. Use `fishgear clear` with either command to remove the extra trigger. Applying a lure still requires a pole in your main hand.
+In **Automatic**, your current profile must have at least one Fishing buff enabled for fishing gear to switch the bar to Fishing. A main-hand fishing pole qualifies. To register one extra item for your character, use `/alwaysbuffed fishgear <item link or ID>` or `/ab fishgear <item link or ID>`. The registered item qualifies in any equipped slot. Use `fishgear clear` with either command to remove the extra trigger. Applying a lure still requires a pole in your main hand.
 
 These records use the Forever client data for build `1.60.1.70959`. The fishing pole is weapon class `2`, subclass `20`, equipped in the main hand. Lure spells require subclass mask `1048576` and apply a temporary enchant through spell effect `54`. The table lists the item requirement separately from the skill gained after the lure is applied. [ItemSparse](https://wago.tools/db2/ItemSparse?build=1.60.1.70959), [SpellEquippedItems](https://wago.tools/db2/SpellEquippedItems?build=1.60.1.70959), [SpellEffect](https://wago.tools/db2/SpellEffect?build=1.60.1.70959), [SpellItemEnchantment](https://wago.tools/db2/SpellItemEnchantment?build=1.60.1.70959)
 
@@ -49,7 +49,7 @@ The Lucky Fishing Hat, Arcanite Fishing Pole, and Eternium Fishing Line provide 
 
 Version 1.1.1 removed the hidden-herb and hidden-mining reminders. Characters upgrading with the old Herbalism or Mining bar selected return to **Automatic**.
 
-Select **Professions → Herbalism Tea** to show or hide the reminder on your default Combat bar. It starts enabled for trained herbalists. An explicit checkbox choice takes priority and works with Find Herbs on or off. In Automatic mode, putting your fishing pole away brings the default bar back.
+Select **Professions → Herbalism Tea** to show or hide the reminder on your default Combat bar. The checkbox works with Find Herbs on or off. In Automatic mode, putting your fishing pole away brings the default bar back.
 
 From level 25, carry Goldthorn Tea (`10841`) to use it from the bar. Drink for 10 seconds to gain +15 Herbalism for 15 minutes. The addon tracks the tea’s Well Fed aura (`1249907`), including when the last tea has been used. [ItemEffect](https://wago.tools/db2/ItemEffect?build=1.60.1.70959), [SpellEffect](https://wago.tools/db2/SpellEffect?build=1.60.1.70959)
 

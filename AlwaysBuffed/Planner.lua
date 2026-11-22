@@ -3,14 +3,6 @@ local L = A.L
 
 local COOKING = 185
 
-local function defaultTracked(category, profile, ctx)
-    if category.key == "herbalismTea" then
-        -- Forever exposes both the parent Herbalism skill and its expansion skill.
-        return ctx.skill(182) > 0 or ctx.skill(2944) > 0
-    end
-    return category.profession ~= nil or profile.tracked[category.key] == true
-end
-
 -- Only Game.lua reads gameplay state. The planner can rank a snapshot
 -- before item names have loaded or on a machine without WoW installed.
 function A.SelectProfile(profiles, choice, talentPoints)
@@ -246,7 +238,7 @@ end
 
 function A.PlanCategory(category, catalog, ctx, prefs, profile)
     local tracked = prefs.enabled
-    if tracked == nil then tracked = defaultTracked(category, profile, ctx) end
+    if tracked == nil then tracked = profile.tracked[category.key] == true end
     local weapon = category.slot and ctx.weapons[category.slot]
     local weaponSubclass = category.slot and ctx.weaponSubclasses and ctx.weaponSubclasses[category.slot]
     local lure = category.profession == "fishing" and category.slot ~= nil

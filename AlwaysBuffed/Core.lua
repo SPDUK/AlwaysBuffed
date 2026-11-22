@@ -115,17 +115,6 @@ function A.SetBarMode(mode)
     end
 end
 
-local function updateBarMode(state, ctx)
-    local mode = A.db.barMode
-    if mode ~= "auto" then
-        state.barProfession = mode ~= "combat" and mode or nil
-    elseif ctx.weapons[16] == "fishingPole" or G.HasFishingGear(A.db.fishingGearItemID) then
-        state.barProfession = "fishing"
-    elseif ctx.mainHandKnown or state.barProfession ~= "fishing" then
-        state.barProfession = nil
-    end
-end
-
 local function scheduleGearReady(deadline)
     if gearDeadline == deadline then return end
     if gearTimer then gearTimer:Cancel() end
@@ -152,7 +141,6 @@ function A.Update()
         return
     end
     local ctx = G.Context(state.class, state.level, A.db.reminders)
-    updateBarMode(state, ctx)
     for _, category in ipairs(A.categories) do
         local catalog = A.catalog[category.key]
         if category.kind == "food" then catalog = G.FoodWithBagFallback(catalog) end
@@ -165,6 +153,7 @@ function A.Update()
         end
         state.categories[category.key] = plan
     end
+    state.barProfession = A.ResolveBarProfession(ctx)
     local lure = state.categories.fishingLure
     scheduleGearReady(lure and lure.cooldownEnds)
     effects(true, true)
@@ -287,7 +276,7 @@ local function slash(message)
             print(A.L["AlwaysBuffed: extra fishing gear cleared."])
         elseif id and id > 0 then
             A.db.fishingGearItemID = id
-            print(A.L["AlwaysBuffed: equipping item %d will select the fishing bar in Automatic mode."]:format(id))
+            print(A.L["AlwaysBuffed: item %d registered as fishing gear."]:format(id))
         else
             print(A.L["Use /ab fishgear followed by an item link or ID, or /ab fishgear clear."])
             return

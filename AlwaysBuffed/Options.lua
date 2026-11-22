@@ -999,7 +999,7 @@ local function buildProfessions(frame)
     local help = label(page, 14, color.muted, "LEFT", false, 2)
     help:SetPoint("TOPLEFT", 0, -y - 29)
     help:SetWidth(contentWidth)
-    help:SetText(L["Automatic switches between the combat and fishing bars based on equipped gear."])
+    help:SetText(L["Automatic switches to Fishing when you equip fishing gear and have a Fishing buff enabled."])
     y = y + 84
     line(page, 0, y - 16, 0)
     local linkWidth = math.floor((contentWidth - 12) / 2)

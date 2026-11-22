@@ -3,28 +3,15 @@ local L = A.L
 
 local BINDING = "ALWAYSBUFFED_TOGGLE_WHEEL"
 local TWO_PI = 2 * math.pi
-local DIAMETER, INNER, OUTER = 396, 72, 198
+local DIAMETER, INNER, OUTER = 352, 64, 176
+local TILE_SIZE = 40
+local OPEN_TIME, CLOSE_TIME = 0.25, 0.12
 local ATLAS_PATH = "Interface\\AddOns\\AlwaysBuffed\\Media\\Wheel"
 local ATLAS_SIZE, CELL_SIZE, MASK_RADIUS = 2048, 320, 112
 local COLUMNS, DISC = 6, 35
 local COLORS = A.theme.colors
-local LABELS = {
-    elixirDefense = L["Def. Elixir"],
-    elixirRegen = L["Regen Elixir"],
-    scrollStrength = L["Strength"],
-    scrollAgility = L["Agility"],
-    scrollStamina = L["Stamina"],
-    scrollIntellect = L["Intellect"],
-    scrollSpirit = L["Spirit"],
-    scrollProtection = L["Protection"],
-    weapon = L["Main Hand"],
-    imbue = L["Main Imbue"],
-    weaponOffhand = L["Off Hand"],
-    imbueOffhand = L["Off-Hand Imbue"],
-    sleepingBag = L["Sleeping Bag"],
-}
-
-local wheel, preview, bindingOwner, escapeOwner, escapeButton
+local wheel, ringArt, preview, bindingOwner, escapeOwner, escapeButton
+local reveal, screenFit = 0, 1
 local art, buttons, inputs, inputPool = {}, {}, {}, {}
 local entries, selected, mode, held, originX, originY, bindingSignature, statusAt
 local bindingsUpdating, bindingsWaiting
@@ -32,8 +19,8 @@ local bindingsUpdating, bindingsWaiting
 BINDING_HEADER_ALWAYSBUFFED = "AlwaysBuffed"
 BINDING_NAME_ALWAYSBUFFED_TOGGLE_WHEEL = L["Hold buff wheel"]
 
-local function cursorPosition()
-    local scale = wheel:GetEffectiveScale()
+local function cursorPosition(frame)
+    local scale = frame:GetEffectiveScale()
     local x, y = GetCursorPosition()
     return x / scale, y / scale
 end
@@ -46,8 +33,10 @@ local function sector(x, y, count)
 end
 
 local function getSelection()
-    local x, y = cursorPosition()
-    local cx, cy = wheel:GetCenter()
+    -- Clicks follow the visible slices. Held gestures keep a fixed dead zone.
+    local frame = mode == "preview" and ringArt or wheel
+    local x, y = cursorPosition(frame)
+    local cx, cy = frame:GetCenter()
     if not cx then return end
 
     local dx, dy = x - cx, y - cy
@@ -69,7 +58,7 @@ local function getSelection()
     if radius <= INNER then return end
 
     local index, distanceToEdge = sector(dx, dy, #entries)
-    if mode == "preview" and #entries > 1 and radius * math.sin(distanceToEdge) < 2.55 then return end
+    if mode == "preview" and #entries > 1 and radius * math.sin(distanceToEdge) < 2.25 then return end
     return index, dx / radius, dy / radius, radius
 end
 
@@ -78,7 +67,7 @@ local function colorFont(font, color)
 end
 
 local function atlasTexture(layer, extension, sublevel)
-    local texture = wheel:CreateTexture(nil, layer, nil, sublevel)
+    local texture = ringArt:CreateTexture(nil, layer, nil, sublevel)
     texture:SetTexture(ATLAS_PATH .. extension .. ".png")
     return texture
 end
@@ -91,16 +80,16 @@ local function setMask(texture, cell, angle, size, x, y)
     texture:SetTexCoord(originU - c - s, originV + s - c, originU - c + s, originV + s + c,
         originU + c - s, originV - s - c, originU + c + s, originV - s + c)
     texture:SetSize(size, size)
-    texture:SetPoint("CENTER", wheel, "CENTER", x, y)
+    texture:SetPoint("CENTER", ringArt, "CENTER", x, y)
 end
 
 local function tint(texture, color, alpha)
     texture:SetVertexColor(color[1], color[2], color[3], alpha or color[4] or 1)
 end
 
-local function makeFont(size, strong)
-    local font = wheel:CreateFontString(nil, "OVERLAY")
-    A.theme.Font(font, size, strong)
+local function makeFont(size, strong, flags, maxSize)
+    local font = ringArt:CreateFontString(nil, "OVERLAY")
+    A.theme.Font(font, size, strong, flags, maxSize)
     font:SetJustifyH("CENTER")
     return font
 end
@@ -109,15 +98,14 @@ local function createSlice(index)
     local slice = {}
     slice.surface = atlasTexture("BACKGROUND", "Fill", 1)
     slice.outline = atlasTexture("BORDER", "Stroke", 1)
-    slice.border = wheel:CreateTexture(nil, "ARTWORK", nil, 1)
-    slice.border:SetSize(36, 36)
-    slice.icon = wheel:CreateTexture(nil, "ARTWORK", nil, 2)
-    slice.icon:SetSize(32, 32)
+    slice.border = ringArt:CreateTexture(nil, "ARTWORK", nil, 1)
+    slice.icon = ringArt:CreateTexture(nil, "ARTWORK", nil, 2)
     slice.icon:SetPoint("CENTER", slice.border)
-    slice.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    slice.label = makeFont(10, true)
-    slice.label:SetWordWrap(true)
-    slice.label:SetMaxLines(2)
+    slice.icon:SetTexCoord(0.075, 0.925, 0.075, 0.925)
+    slice.time = makeFont(15, true, "OUTLINE", 15)
+    slice.time:SetTextColor(1, 1, 1)
+    slice.hand = makeFont(10, true, "OUTLINE", 10)
+    slice.hand:SetTextColor(1, 1, 1)
     buttons[index] = slice
     return slice
 end
@@ -127,22 +115,27 @@ local function showSlice(slice, show)
     slice.outline:SetShown(show)
     slice.border:SetShown(show)
     slice.icon:SetShown(show)
-    slice.label:SetShown(show)
+    slice.time:SetShown(show)
+    slice.hand:SetShown(show)
 end
 
 local function paintSlice(slice, entry, isSelected)
-    tint(slice.surface, isSelected and COLORS.selected or COLORS.raised, isSelected and 1 or 0.96)
+    tint(slice.surface, isSelected and COLORS.selected or COLORS.raised, isSelected and 1 or 0.94)
     tint(slice.outline, isSelected and COLORS.mint or COLORS.line)
     local edge = entry.active and A.activeBorderColor or (isSelected and COLORS.mint or COLORS.edge)
     slice.border:SetColorTexture(unpack(edge))
-    local insetSize = slice.size - (entry.active and 6 or 4)
-    slice.icon:SetSize(insetSize, insetSize)
     local unbuffedCamp = entry.category.key == "campfire" and not entry.active
     slice.icon:SetTexture(unbuffedCamp and entry.category.icon or entry.statusIcon or entry.icon)
-    local visible = not unbuffedCamp and (entry.row or entry.statusMode == "pending" or entry.active)
+    local visible = not unbuffedCamp and entry.statusMode ~= "cooldown" and (entry.row or entry.active)
     slice.icon:SetDesaturated(not visible)
-    slice.icon:SetAlpha(visible and 1 or (unbuffedCamp and entry.row and 0.8 or 0.53))
-    colorFont(slice.label, (isSelected or entry.row or entry.active) and COLORS.text or COLORS.muted)
+    slice.icon:SetAlpha(visible and 1 or (unbuffedCamp and entry.row and 0.8 or 0.48))
+    slice.time:SetText(entry.time)
+    if entry.time then
+        slice.time:SetTextScale(1)
+        local size = slice.border:GetWidth()
+        local width = math.max(1, slice.time:GetStringWidth())
+        slice.time:SetTextScale(math.min(size / TILE_SIZE, (size - 6) / width))
+    end
 end
 
 local function paintCenter(entry)
@@ -162,19 +155,18 @@ end
 
 local function readStatus(entry, now)
     local state = A.state.categories[entry.category.key] or {}
-    local active, icon, statusMode = entry.active, entry.statusIcon, entry.statusMode
+    local active, icon, statusMode, time = entry.active, entry.statusIcon, entry.statusMode, entry.time
+    entry.active = A.EffectIsCurrent(state.active, state.expires, now)
+    entry.time = entry.active and state.expires and state.expires > now and A.BuffDuration(state.expires - now, true) or nil
     if entry.reminder then
         entry.statusName, entry.statusDetail, entry.statusMode, entry.statusIcon =
             A.ReminderStatus(entry.category, state, now)
-        entry.active = entry.statusMode == "active"
-    elseif A.EffectIsCurrent(state.active, state.expires, now) then
-        entry.active = true
-        local duration = state.expires and state.expires > now and A.BuffDuration(state.expires - now, true)
-        entry.statusDetail = duration and L["Active  ·  %s left"]:format(duration) or L["Active"]
+    elseif entry.active then
+        entry.statusDetail = entry.time and L["Active  ·  %s left"]:format(entry.time) or L["Active"]
     else
-        entry.active, entry.statusDetail = false, nil
+        entry.statusDetail = nil
     end
-    return active ~= entry.active or icon ~= entry.statusIcon or statusMode ~= entry.statusMode
+    return active ~= entry.active or icon ~= entry.statusIcon or statusMode ~= entry.statusMode or time ~= entry.time
 end
 
 local function refreshStatuses(now)
@@ -200,7 +192,7 @@ local function updateSelection()
 
     if mode == "hold" and index then
         radius = math.min(radius, OUTER - 10)
-        art.pointer:SetPoint("CENTER", wheel, "CENTER", x * radius, y * radius)
+        art.pointer:SetPoint("CENTER", ringArt, "CENTER", x * radius, y * radius)
         art.pointer:Show()
     else
         art.pointer:Hide()
@@ -234,37 +226,74 @@ local function snapshot()
     return tracked
 end
 
+local function paintReveal()
+    local remaining = 1 - reveal
+    local scale = wheel:GetScale() * (1 + 0.25 * remaining * remaining)
+    ringArt:SetScale(math.min(scale, screenFit))
+    ringArt:SetAlpha(reveal)
+end
+
+local function hideArt()
+    reveal = 0
+    ringArt:Hide()
+    ringArt:SetScript("OnUpdate", nil)
+end
+
+local function animateRing(self, elapsed)
+    if mode then
+        reveal = math.min(1, reveal + elapsed / OPEN_TIME)
+    else
+        reveal = math.max(0, reveal - elapsed / CLOSE_TIME)
+    end
+    paintReveal()
+    if not mode and reveal == 0 then
+        hideArt()
+    elseif mode and reveal == 1 then
+        self:SetScript("OnUpdate", nil)
+    end
+end
+
 local function resize()
     local width, height = UIParent:GetSize()
     local scale = tonumber(A.db.wheelScale) or 1
-    wheel:SetScale(math.min(math.max(scale, 0.5), (width - 16) / DIAMETER, (height - 16) / DIAMETER))
+    screenFit = math.min((width - 16) / DIAMETER, (height - 16) / DIAMETER)
+    wheel:SetScale(math.min(math.max(scale, 0.5), screenFit))
+    paintReveal()
 end
 
 local function layout()
     local count = #entries
     local now = GetTime()
     local step = TWO_PI / count
-    local iconRadius, labelRadius = 133, 168
-    local iconSize = count == 1 and 36 or math.min(36, 2 * iconRadius * math.sin(step / 2) - 4)
-    local labelWidth = count == 1 and 56 or math.min(56, 2 * labelRadius * math.sin(step / 2) - 7)
+    local iconRadius = (INNER + OUTER) / 2
+    local iconSize = TILE_SIZE
+    if count > 1 then
+        -- Allow room for the diagonal of an upright tile inside an angled slice.
+        local span = 2 * math.sin(step / 2)
+        local diagonal = TILE_SIZE * math.sqrt(2)
+        iconRadius = math.min(OUTER - diagonal / 2 - 2, math.max(iconRadius, (diagonal + 4) / span))
+        iconSize = math.min(TILE_SIZE, (iconRadius * span - 4) / math.sqrt(2))
+    end
+    local textScale = iconSize / TILE_SIZE
     for index, entry in ipairs(entries) do
         local slice = buttons[index] or createSlice(index)
         local angle = (index - 1) * step
         setMask(slice.surface, count - 1, angle, DIAMETER, 0, 0)
         setMask(slice.outline, count - 1, angle, DIAMETER, 0, 0)
         local x, y = math.sin(angle), math.cos(angle)
-        slice.size = iconSize
         slice.border:SetSize(iconSize, iconSize)
-        slice.border:SetPoint("CENTER", wheel, "CENTER", x * iconRadius, y * iconRadius)
-        slice.label:SetPoint("CENTER", wheel, "CENTER", x * labelRadius, y * labelRadius)
-        slice.label:SetWidth(labelWidth)
-        slice.label:SetText(entry.category.shortLabel or LABELS[entry.category.key] or entry.category.label)
+        slice.border:SetPoint("CENTER", ringArt, "CENTER", x * iconRadius, y * iconRadius)
+        slice.icon:SetSize(iconSize - 4, iconSize - 4)
+        slice.time:SetPoint("CENTER", slice.border, "CENTER", 0, 3 * textScale)
+        slice.hand:SetTextScale(textScale)
+        slice.hand:SetPoint("BOTTOMRIGHT", slice.border, "BOTTOMRIGHT", -3 * textScale, 4 * textScale)
+        slice.hand:SetText(A.HandLabel(entry.category.slot))
         readStatus(entry, now)
         paintSlice(slice, entry, false)
         showSlice(slice, true)
-        if count > 18 then slice.label:Hide() end
     end
     for index = count + 1, #buttons do showSlice(buttons[index], false) end
+    tint(art.base, COLORS.sidebar, 0.88)
     tint(art.hub, COLORS.panel)
     tint(art.hubEdge, COLORS.edge)
     tint(art.pointer, COLORS.mint)
@@ -277,6 +306,11 @@ local function closeWheel()
     if not mode then return end
     mode, selected, entries, originX, originY = nil, nil, nil, nil, nil
     wheel:Hide()
+    if reveal == 0 or InCombatLockdown() or not A.db.showWheel then
+        hideArt()
+    else
+        ringArt:SetScript("OnUpdate", animateRing)
+    end
     if not InCombatLockdown() then
         preview:Hide()
         ClearOverrideBindings(escapeOwner)
@@ -294,8 +328,10 @@ local function openWheel(nextMode)
     resize()
     layout()
     wheel:Show()
+    ringArt:SetScript("OnUpdate", animateRing)
+    ringArt:Show()
     if mode == "hold" then
-        local x, y = cursorPosition()
+        local x, y = cursorPosition(wheel)
         local cx, cy = wheel:GetCenter()
         if not cx or (x - cx) ^ 2 + (y - cy) ^ 2 > INNER ^ 2 then
             originX, originY = x, y
@@ -484,18 +520,27 @@ function A.InitWheel()
     wheel:Hide()
     wheel:SetScript("OnHide", closeWheel)
     wheel:SetScript("OnUpdate", updateSelection)
+    -- The artwork can finish fading after the input frame releases the shortcut or click.
+    ringArt = CreateFrame("Frame", nil, UIParent)
+    ringArt:SetFrameStrata("FULLSCREEN_DIALOG")
+    ringArt:SetSize(DIAMETER, DIAMETER)
+    ringArt:SetPoint("CENTER", UIParent, "CENTER")
+    ringArt:EnableMouse(false)
+    ringArt:Hide()
 
+    art.base = atlasTexture("BACKGROUND", "Fill", 0)
+    setMask(art.base, DISC, 0, DIAMETER, 0, 0)
     art.hub = atlasTexture("BACKGROUND", "Fill", 2)
     art.hubEdge = atlasTexture("BORDER", "Stroke", 2)
     setMask(art.hub, DISC, 0, INNER * 2, 0, 0)
     setMask(art.hubEdge, DISC, 0, INNER * 2, 0, 0)
     art.title = makeFont(15, true)
-    art.title:SetWidth(116)
-    art.title:SetPoint("BOTTOM", wheel, "CENTER", 0, 3)
+    art.title:SetWidth(104)
+    art.title:SetPoint("BOTTOM", ringArt, "CENTER", 0, 3)
     art.title:SetMaxLines(2)
     art.detail = makeFont(11, false)
-    art.detail:SetWidth(116)
-    art.detail:SetPoint("TOP", wheel, "CENTER", 0, -6)
+    art.detail:SetWidth(104)
+    art.detail:SetPoint("TOP", ringArt, "CENTER", 0, -6)
     art.detail:SetMaxLines(2)
     art.pointer = atlasTexture("OVERLAY", "Fill", 3)
     setMask(art.pointer, DISC, 0, 8, 0, 0)
@@ -539,6 +584,7 @@ function A.InitWheel()
             end
         else
             closeWheel()
+            hideArt()
         end
     end)
     bindingOwner:RegisterEvent("UPDATE_BINDINGS")

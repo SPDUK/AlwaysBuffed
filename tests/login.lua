@@ -217,7 +217,16 @@ assert(A.db.barMode == "auto", "a Rogue cannot select the Mage bar")
 
 gear[16], mainEnchants = pole, {temporary(263), poison}
 process("PLAYER_EQUIPMENT_CHANGED", 16)
-assert(A.db.barMode == "auto" and A.state.barProfession == "fishing", "a pole switches the auto bar by item subtype")
+assert(A.db.barMode == "auto" and not A.state.barProfession, "a pole alone leaves the Combat bar active")
+A.Prefs("fishingCoin").enabled = true
+A.Update()
+assert(A.state.barProfession == "fishing" and not plan("fishingCoin").bag, "one enabled Fishing buff suffices even with no item")
+A.db.profile = "subtlety"
+A.Update()
+assert(not A.state.barProfession, "an opt-in on another profile cannot switch this profile's bar")
+A.db.profile = "auto"
+A.Update()
+assert(A.state.barProfession == "fishing", "returning to the opted-in profile uses the already-equipped pole")
 assert(lure().bag.item.id == 6529 and lure().active == "+25 Fishing" and lure().expires == 1060)
 assert(not plan("weapon").active and not plan("imbue").active, "the pole clears the old main-hand combat enchants")
 assert(plan("weaponOffhand").active == "Rough Sharpening Stone", "the other hand keeps its own enchant")
@@ -280,6 +289,12 @@ assert(A.db.fishingGearItemID == fishingBoots and not A.state.barProfession, "me
 gear[8] = fishingBoots
 process("PLAYER_EQUIPMENT_CHANGED", 8)
 assert(A.state.barProfession == "fishing" and not lure().applicable, "marked equipment activates Fishing without turning a dagger into a pole")
+A.Prefs("fishingCoin").enabled = false
+A.Update()
+assert(not A.state.barProfession, "marked equipment also needs an enabled Fishing buff")
+A.Prefs("fishingLure").enabled = true
+A.Update()
+assert(A.state.barProfession == "fishing", "an enabled lure counts even when the marked gear is not a pole")
 A.SetBarMode("combat")
 assert(not A.state.barProfession, "manual Combat overrides marked gear as well")
 A.SetBarMode("auto")
@@ -330,7 +345,11 @@ class, carried, AlwaysBuffedDB = "MAGE", {[215257] = 1}, {barMode = "comprehensi
 auras = {{spellId = 435563, name = "Comprehension", duration = 3600, expirationTime = now + 3550}}
 event(nil, "PLAYER_LOGIN")
 local scroll = plan("comprehensionScroll")
-assert(A.state.barProfession == "comprehension" and scroll.tracked and scroll.bag.item.id == 215257)
+assert(A.state.barProfession == "comprehension" and not scroll.tracked and scroll.bag.item.id == 215257)
+A.Prefs("comprehensionScroll").enabled = true
+event(nil, "PLAYER_LOGIN")
+scroll = plan("comprehensionScroll")
+assert(scroll.tracked, "the Mage's explicit opt-in survives login")
 assert(scroll.activeSpellID == 435563 and scroll.expires == now + 3550)
 print("Shared camp, Herbalism and Mage Comprehension tracking passed.")
 
@@ -352,7 +371,7 @@ assert(A.OnActiveBar(teaCategory) and not plan("herbalismTea").tracked, "untrain
 for _, id in ipairs({182, 2944}) do
     herbRanks = {[id] = 1}
     process("SKILL_LINES_CHANGED")
-    assert(plan("herbalismTea").tracked, "learning Herbalism enables the Tea reminder even with empty bags")
+    assert(not plan("herbalismTea").tracked, "learning Herbalism leaves the Tea reminder off")
 end
 A.Prefs("herbalismTea").enabled = false
 A.Update()
@@ -363,7 +382,7 @@ A.Update()
 assert(plan("herbalismTea").tracked and plan("herbalismTea").bag.item.id == 10841)
 gear[16] = pole
 process("PLAYER_EQUIPMENT_CHANGED", 16)
-assert(A.state.barProfession == "fishing" and not A.OnActiveBar(teaCategory))
+assert(not A.state.barProfession and A.OnActiveBar(teaCategory), "Herbalism alone does not opt into the Fishing bar")
 gear[16] = dagger
 process("PLAYER_EQUIPMENT_CHANGED", 16)
 assert(not A.state.barProfession and A.OnActiveBar(teaCategory) and plan("herbalismTea").tracked)

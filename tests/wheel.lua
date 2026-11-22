@@ -10,8 +10,12 @@ local callback
 
 local Methods = {}
 function Methods:SetSize(w, h) self.w, self.h = w, h end
+function Methods:GetWidth() return self.w end
+function Methods:GetStringWidth() return #(self.text or "") * 7 end
 function Methods:GetSize() return self.w, self.h end
 function Methods:SetScale(value) self.scale = value end
+function Methods:GetScale() return self.scale end
+function Methods:SetAlpha(value) self.alpha = value end
 function Methods:GetEffectiveScale() return self.scale end
 function Methods:GetCenter() return cx / self.scale, cy / self.scale end
 function Methods:GetName() return self.name end
@@ -38,31 +42,31 @@ function Methods:SetColorTexture(...) self.tint = {...} end
 function Methods:SetVertexColor(...) self.vertexColor = {...} end
 
 for _, name in ipairs({"SetTextColor", "SetTexCoord",
-    "SetMaxLines", "SetJustifyH", "SetWidth", "SetAllPoints", "SetFrameStrata", "SetAlpha",
-    "SetWordWrap", "EnableMouse"}) do
+    "SetMaxLines", "SetJustifyH", "SetWidth", "SetAllPoints", "SetFrameStrata",
+    "SetTextScale", "EnableMouse"}) do
     Methods[name] = function() end
 end
 
-function CreateFrame(kind, name, _, template)
+function CreateFrame(kind, name, parent, template)
     local frame = setmetatable({
-        kind = kind, name = name, template = template, shown = true, scale = 1,
+        kind = kind, name = name, parent = parent, template = template, shown = true, scale = 1, alpha = 1,
         attrs = {}, scripts = {}, events = {},
     }, {__index = Methods})
     frames[#frames + 1] = frame
     if name then _G[name] = frame end
     return frame
 end
-function Methods:CreateTexture() return CreateFrame("Texture") end
-function Methods:CreateFontString() return CreateFrame("FontString") end
+function Methods:CreateTexture() return CreateFrame("Texture", nil, self) end
+function Methods:CreateFontString() return CreateFrame("FontString", nil, self) end
 
 local function event(name)
     for _, frame in ipairs(frames) do
         if frame.events[name] then frame.scripts.OnEvent(frame, name) end
     end
 end
-local function tick()
+local function tick(elapsed)
     for _, frame in ipairs(frames) do
-        if frame.shown and frame.scripts.OnUpdate then frame.scripts.OnUpdate(frame) end
+        if frame.shown and frame.scripts.OnUpdate then frame.scripts.OnUpdate(frame, elapsed or 1/60) end
     end
 end
 function GetBindingKey(action)
@@ -149,6 +153,11 @@ assert(loadfile("AlwaysBuffed/BuffBindings.lua"))("AlwaysBuffed", A)
 assert(loadfile("AlwaysBuffed/Wheel.lua"))("AlwaysBuffed", A)
 A.InitWheel()
 local wheel = AlwaysBuffedWheel
+local function findRegion(key, value)
+    for _, frame in ipairs(frames) do
+        if frame.shown and frame[key] == value then return frame end
+    end
+end
 local preview
 for _, frame in ipairs(frames) do
     if frame.template == "SecureActionButtonTemplate,SecureHandlerStateTemplate" then preview = frame end
@@ -163,9 +172,25 @@ assert(not A.SetWheelBinding("MOUSEWHEELUP"))
 -- Pressing while the physical cursor is off-center starts with no selection.
 x, y = 125, 150
 useKey(true)
-assert(wheel:IsShown() and #actions == 0)
+local ringArt = assert(findRegion("texture", "Interface\\AddOns\\AlwaysBuffed\\Media\\WheelFill.png")).parent
+assert(wheel:IsShown() and ringArt.alpha == 0 and #actions == 0, "first frame starts transparent")
+local openingScale = ringArt.scale
+tick(0.06)
+local earlyAlpha = ringArt.alpha
+assert(earlyAlpha > 0 and earlyAlpha < 0.5 and ringArt.scale < openingScale, "the ring fades and settles across frames")
+A.RefreshWheel()
+assert(ringArt.alpha == earlyAlpha, "a status refresh does not restart the entrance")
+tick(0.06)
+assert(ringArt.alpha > earlyAlpha and ringArt.alpha < 1)
+tick(0.14)
+assert(ringArt.alpha == 1 and ringArt.scale == wheel.scale and not ringArt.scripts.OnUpdate)
+assert(findRegion("text", "OH") and not findRegion("text", "Off-Hand Enhancement"))
 useKey(false)
-assert(not wheel:IsShown() and #actions == 0)
+assert(not wheel:IsShown() and not overrides.ESCAPE and #actions == 0)
+tick(0.06)
+assert(ringArt:IsShown() and ringArt.alpha > 0 and ringArt.alpha < 1, "the closing artwork releases input immediately")
+tick(0.10)
+assert(not ringArt:IsShown() and not ringArt.scripts.OnUpdate)
 useKey(true)
 x = x + 100
 tick()
@@ -254,10 +279,18 @@ assert(not wheel:IsShown() and #actions == 6)
 
 -- Preview supports real left-click slices, but center and gaps only close it.
 x, y = cx, cy
+tick(0.13)
 assert(A.ToggleWheel() and preview:IsShown())
+assert(ringArt.alpha == 0)
+tick(0.06)
+assert(ringArt.alpha > 0 and ringArt.alpha < 0.5)
 click(preview, "LeftButton", false)
 assert(not preview:IsShown() and not wheel:IsShown() and #actions == 6)
+local interruptedAlpha = ringArt.alpha
 assert(A.ToggleWheel())
+assert(ringArt.alpha == interruptedAlpha, "reopening during the fade continues from the visible opacity")
+tick(0.02)
+assert(ringArt.alpha > interruptedAlpha)
 x, y = cx + 100, cy + 100
 click(preview, "LeftButton", false)
 assert(#actions == 6)
@@ -297,11 +330,6 @@ assert(not wheel:IsShown() and #actions == 10)
 
 -- The active aura replaces the kit icon and summary, and expires while the
 -- wheel remains open. Changing its presentation must not cast anything.
-local function findRegion(key, value)
-    for _, frame in ipairs(frames) do
-        if frame.shown and frame[key] == value then return frame end
-    end
-end
 states.food.tracked = false
 states.campfire.tracked = true
 states.campfire.bag = {item = {id = 279981}, name = "Basic Campfire Kit", count = 1}
@@ -311,6 +339,7 @@ x, y = cx, cy + 100
 assert(A.ToggleWheel())
 tick()
 assert(findRegion("text", "Camp Benefits") and findRegion("text", "2s left"))
+assert(findRegion("text", "2s") and not findRegion("text", "OH"))
 local activeIcon = assert(findRegion("texture", 99300))
 assert(activeIcon.relative.tint[1] == A.activeBorderColor[1])
 assert(activeIcon.relative.tint[2] == A.activeBorderColor[2])
@@ -322,10 +351,10 @@ end
 assert(selectedOutline, "the selected wedge keeps the class tint")
 now = 1001
 tick()
-assert(findRegion("text", "1s left"))
+assert(findRegion("text", "1s left") and findRegion("text", "1s"))
 now = 1003
 tick()
-assert(not findRegion("texture", 99300))
+assert(not findRegion("texture", 99300) and not findRegion("text", "1s"))
 assert(findRegion("text", "Ready to use"))
 assert(findRegion("texture", 135805).desaturated)
 states.campfire.pending, states.campfire.pendingExpires, states.campfire.pendingIcon = "Welcoming Campfire", 1013, 99302
@@ -360,18 +389,18 @@ assert(not wheel:IsShown(), "switching loadouts cancels the previous held gestur
 y = cy + 100
 useKey(false)
 assert(#actions == 10, "releasing the previous loadout gesture sends no action")
-assert(A.ToggleWheel() and findRegion("text", "Fishing Lure") and not findRegion("text", "Food"))
+assert(A.ToggleWheel() and findRegion("text", "MH") and not findRegion("text", "Fishing Lure"))
 click(preview, "LeftButton", false)
 assert(#actions == 11 and actions[11].item == "item:6532" and actions[11].slot == 16)
-assert(A.ToggleWheel() and findRegion("text", "Fishing Lure"))
+assert(A.ToggleWheel() and findRegion("text", "MH"))
 A.state.barProfession = nil
 click(preview, "LeftButton", false)
 assert(#actions == 11, "clicking an old loadout snapshot sends no action even before refresh")
 A.state.barProfession = "fishing"
-assert(A.ToggleWheel() and findRegion("text", "Fishing Lure"))
+assert(A.ToggleWheel() and findRegion("text", "MH"))
 A.state.barProfession = nil
 A.RefreshWheel()
-assert(findRegion("text", "Food") and not findRegion("text", "Fishing Lure"))
+assert(findRegion("text", "Food") and not findRegion("text", "MH"))
 assert(A.ToggleWheel())
 
 assert(A.SetWheelBinding("SHIFT-H"))

@@ -231,7 +231,7 @@ assert(tray.anchor == preparedAnchor and not AlwaysBuffedAction_category2:IsVisi
 toggle()
 assert(A.db.collapsed and not tray.shown and grip.missingText.text == "4" and grip.activeText.text == "1")
 pressBinding("SHIFT-F7", true)
-assert(not A.db.collapsed and tray.shown and settings == 0, "Shift binding expands without opening settings")
+assert(not A.db.collapsed and tray.shown and wheel == 0, "Shift binding expands without opening the wheel")
 pressBinding("SHIFT-F7", false)
 assert(not A.db.collapsed and tray.shown, "key release does not toggle a second time")
 pressBinding("SHIFT-F7", true)
@@ -239,9 +239,9 @@ assert(A.db.collapsed and not tray.shown and grip.missingGlow.shown)
 shift = true
 toggle()
 shift = false
-assert(A.db.collapsed and not tray.shown and settings == 1, "physical shift-click preserves the settings gesture")
+assert(A.db.collapsed and not tray.shown and wheel == 1 and settings == 0, "Shift-click routes to the wheel without unfolding")
 secure.press(grip, "RightButton", false)
-assert(A.db.collapsed and wheel == 1, "right-click keeps its own wheel gesture")
+assert(A.db.collapsed and settings == 1 and wheel == 1, "right-click routes to settings without unfolding")
 pressBinding("SHIFT-F7", true)
 assert(not A.db.collapsed and tray.shown)
 locked = false

@@ -363,6 +363,7 @@ for _, category in ipairs(A.categories) do
         local class = category.class or "HUNTER"
         local context = fixtureContext(class, "fishingPole", 20)
         local list = A.PlanCategory(category, A.catalog[category.key], context, {}, A.profiles[class][1])
+        equal(list.enabled, false, category.key .. " starts unchecked")
         for _, row in ipairs(list.rows) do
             equal(row.group, "utility", category.key .. " ranks profession items as Utility")
         end

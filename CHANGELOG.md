@@ -1,3 +1,10 @@
+# AlwaysBuffed 1.2.0
+
+- Shift-left-click the bar grip to open the buff wheel. Right-click the grip for settings. Right-clicking a buff icon still opens its category or upgrade.
+- The wheel fades in over a quarter of a second and accepts input immediately. Slices show the buff icon, a gold border and timer while active, and MH or OH on weapon buffs. Hover a slice to see its details in the center.
+- Fishing, Herbalism Tea, and Mage Comprehension tracking start off for each profile. Existing explicit choices are preserved.
+- In Automatic mode, a fishing pole or registered fishing gear switches the bar, wheel, and shopping list to Fishing only when the current profile has a Fishing buff enabled. Disabling the last Fishing buff restores Combat.
+
 # AlwaysBuffed 1.1.1
 
 - Fishing items now appear in one **Utility** group. Lures are still ranked by Fishing bonus, and tracked items keep priority.
